@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-present Open Networking Laboratory
+ * Copyright 2014-present Open Networking Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -53,6 +53,17 @@ public interface DeviceProviderService extends ProviderService<DeviceProvider> {
      * @param portDescriptions list of device ports
      */
     void updatePorts(DeviceId deviceId, List<PortDescription> portDescriptions);
+
+    /**
+     * Delete information about a single port of a device.
+     * It is up to the core to determine what has changed.
+     *
+     * @param deviceId         identity of the device
+     * @param portDescription       device port description
+     */
+    default void deletePort(DeviceId deviceId, PortDescription portDescription) {
+
+    }
 
     /**
      * Notifies the core about port status change of a single port.

@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-present Open Networking Laboratory
+ * Copyright 2016-present Open Networking Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ import com.google.common.collect.ImmutableSet;
 
 import org.onlab.packet.MplsLabel;
 import org.onlab.packet.VlanId;
+import org.onlab.util.Bandwidth;
 import org.onlab.util.Tools;
 import org.onosproject.net.TributarySlot;
 
@@ -35,9 +36,22 @@ import java.util.stream.Collectors;
 
 public class MockResourceService implements ResourceService {
 
+    private double bandwidth = 1000.0;
     private final Map<Resource, ResourceConsumer> assignment = new HashMap<>();
     public Set<Short> availableVlanLabels = new HashSet<>();
     public Set<Integer> availableMplsLabels = new HashSet<>();
+    public boolean filterAssignment = false;
+
+    public MockResourceService(){}
+
+    // To express a custom bandwidth available (in bps)
+    public static ResourceService makeCustomBandwidthResourceService(double bandwidth) {
+        return new MockResourceService(bandwidth);
+    }
+
+    private MockResourceService(double bandwidth) {
+        this.bandwidth = bandwidth;
+    }
 
     @Override
     public List<ResourceAllocation> allocate(ResourceConsumer consumer, List<? extends Resource> resources) {
@@ -156,7 +170,11 @@ public class MockResourceService implements ResourceService {
         resources.add(Resources.discrete(parent).resource().child(TributarySlot.of(6)));
         resources.add(Resources.discrete(parent).resource().child(TributarySlot.of(7)));
         resources.add(Resources.discrete(parent).resource().child(TributarySlot.of(8)));
-        return ImmutableSet.copyOf(resources);
+        return filterAssignment ? ImmutableSet.copyOf(
+                resources.stream().filter(
+                        resource -> assignment.get(resource) == null
+                ).collect(Collectors.toSet())
+        ) : ImmutableSet.copyOf(resources);
     }
 
     @Override
@@ -181,6 +199,11 @@ public class MockResourceService implements ResourceService {
 
     @Override
     public boolean isAvailable(Resource resource) {
+        if (resource.isTypeOf(Bandwidth.class)) {
+            // If there's is enough bandwidth available return true; false otherwise
+            Optional<Double> value = resource.valueAs(Double.class);
+            return value.filter(requested -> requested <= bandwidth).isPresent();
+        }
         return true;
     }
 

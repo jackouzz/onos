@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-present Open Networking Laboratory
+ * Copyright 2016-present Open Networking Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,20 +15,6 @@
  */
 package org.onosproject.store.primitives.resources.impl;
 
-import com.google.common.base.Throwables;
-import com.google.common.collect.Sets;
-import io.atomix.resource.ResourceType;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
-import org.onlab.util.Tools;
-import org.onosproject.store.primitives.MapUpdate;
-import org.onosproject.store.primitives.TransactionId;
-import org.onosproject.store.service.MapEvent;
-import org.onosproject.store.service.MapEventListener;
-import org.onosproject.store.service.MapTransaction;
-import org.onosproject.store.service.Versioned;
-
 import java.util.Arrays;
 import java.util.ConcurrentModificationException;
 import java.util.List;
@@ -36,6 +22,20 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletionException;
 import java.util.stream.Collectors;
+
+import com.google.common.base.Throwables;
+import com.google.common.collect.Sets;
+import io.atomix.protocols.raft.proxy.RaftProxy;
+import io.atomix.protocols.raft.service.RaftService;
+import org.junit.Test;
+import org.onlab.util.Tools;
+import org.onosproject.store.primitives.MapUpdate;
+import org.onosproject.store.primitives.TransactionId;
+import org.onosproject.store.service.MapEvent;
+import org.onosproject.store.service.MapEventListener;
+import org.onosproject.store.service.TransactionLog;
+import org.onosproject.store.service.Version;
+import org.onosproject.store.service.Versioned;
 
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertArrayEquals;
@@ -50,20 +50,16 @@ import static org.junit.Assert.fail;
 /**
  * Unit tests for {@link AtomixConsistentMap}.
  */
-public class AtomixConsistentMapTest extends AtomixTestBase {
+public class AtomixConsistentMapTest extends AtomixTestBase<AtomixConsistentMap> {
 
-    @BeforeClass
-    public static void preTestSetup() throws Throwable {
-        createCopycatServers(3);
-    }
-
-    @AfterClass
-    public static void postTestCleanup() throws Exception {
-        clearTests();
-    }
     @Override
-    protected ResourceType resourceType() {
-        return new ResourceType(AtomixConsistentMap.class);
+    protected RaftService createService() {
+        return new AtomixConsistentMapService();
+    }
+
+    @Override
+    protected AtomixConsistentMap createPrimitive(RaftProxy proxy) {
+        return new AtomixConsistentMap(proxy);
     }
 
     /**
@@ -83,11 +79,57 @@ public class AtomixConsistentMapTest extends AtomixTestBase {
     }
 
     /**
+     * Tests null values.
+     */
+    @Test
+    public void testNullValues() throws Throwable {
+        final byte[] rawFooValue = Tools.getBytesUtf8("Hello foo!");
+        final byte[] rawBarValue = Tools.getBytesUtf8("Hello bar!");
+
+        AtomixConsistentMap map = newPrimitive("testNullValues");
+
+        map.get("foo")
+                .thenAccept(v -> assertNull(v)).join();
+        map.put("foo", null)
+                .thenAccept(v -> assertNull(v)).join();
+        map.put("foo", rawFooValue).thenAccept(v -> {
+            assertNotNull(v);
+            assertNull(v.value());
+        }).join();
+        map.get("foo").thenAccept(v -> {
+            assertNotNull(v);
+            assertTrue(Arrays.equals(v.value(), rawFooValue));
+        }).join();
+        map.replace("foo", rawFooValue, null)
+                .thenAccept(replaced -> assertTrue(replaced)).join();
+        map.get("foo").thenAccept(v -> {
+            assertNotNull(v);
+            assertNull(v.value());
+        }).join();
+        map.replace("foo", rawFooValue, rawBarValue)
+                .thenAccept(replaced -> assertFalse(replaced)).join();
+        map.replace("foo", null, rawBarValue)
+                .thenAccept(replaced -> assertTrue(replaced)).join();
+        map.get("foo").thenAccept(v -> {
+            assertNotNull(v);
+            assertTrue(Arrays.equals(v.value(), rawBarValue));
+        }).join();
+    }
+
+    /**
      * Tests map event notifications.
      */
     @Test
     public void testMapListeners() throws Throwable {
         mapListenerTests();
+    }
+
+    /**
+     * Tests map transaction prepare.
+     */
+    @Test
+    public void testTransactionPrepare() throws Throwable {
+        transactionPrepareTests();
     }
 
     /**
@@ -110,8 +152,7 @@ public class AtomixConsistentMapTest extends AtomixTestBase {
         final byte[] rawFooValue = Tools.getBytesUtf8("Hello foo!");
         final byte[] rawBarValue = Tools.getBytesUtf8("Hello bar!");
 
-        AtomixConsistentMap map = createAtomixClient().getResource("testBasicMapOperationMap",
-                                                                   AtomixConsistentMap.class).join();
+        AtomixConsistentMap map = newPrimitive("testBasicMapOperationMap");
 
         map.isEmpty().thenAccept(result -> {
             assertTrue(result);
@@ -240,8 +281,7 @@ public class AtomixConsistentMapTest extends AtomixTestBase {
         final byte[] value2 = Tools.getBytesUtf8("value2");
         final byte[] value3 = Tools.getBytesUtf8("value3");
 
-        AtomixConsistentMap map = createAtomixClient().getResource("testMapComputeOperationsMap",
-                                                                   AtomixConsistentMap.class).join();
+        AtomixConsistentMap map = newPrimitive("testMapComputeOperationsMap");
 
         map.computeIfAbsent("foo", k -> value1).thenAccept(result -> {
             assertTrue(Arrays.equals(Versioned.valueOrElse(result, null), value1));
@@ -253,7 +293,7 @@ public class AtomixConsistentMapTest extends AtomixTestBase {
 
         map.computeIfPresent("bar", (k, v) -> value2).thenAccept(result -> {
             assertNull(result);
-        });
+        }).join();
 
         map.computeIfPresent("foo", (k, v) -> value3).thenAccept(result -> {
             assertTrue(Arrays.equals(Versioned.valueOrElse(result, null), value3));
@@ -272,14 +312,12 @@ public class AtomixConsistentMapTest extends AtomixTestBase {
         }).join();
     }
 
-
     protected void mapListenerTests() throws Throwable {
         final byte[] value1 = Tools.getBytesUtf8("value1");
         final byte[] value2 = Tools.getBytesUtf8("value2");
         final byte[] value3 = Tools.getBytesUtf8("value3");
 
-        AtomixConsistentMap map = createAtomixClient().getResource("testMapListenerMap",
-                                                                   AtomixConsistentMap.class).join();
+        AtomixConsistentMap map = newPrimitive("testMapListenerMap");
         TestMapEventListener listener = new TestMapEventListener();
 
         // add listener; insert new value into map and verify an INSERT event is received.
@@ -333,26 +371,102 @@ public class AtomixConsistentMapTest extends AtomixTestBase {
         map.removeListener(listener).join();
     }
 
+    protected void transactionPrepareTests() throws Throwable {
+        AtomixConsistentMap map = newPrimitive("testPrepareTestsMap");
+
+        TransactionId transactionId1 = TransactionId.from("tx1");
+        TransactionId transactionId2 = TransactionId.from("tx2");
+        TransactionId transactionId3 = TransactionId.from("tx3");
+        TransactionId transactionId4 = TransactionId.from("tx4");
+
+        Version lock1 = map.begin(transactionId1).join();
+
+        MapUpdate<String, byte[]> update1 =
+                MapUpdate.<String, byte[]>newBuilder()
+                        .withType(MapUpdate.Type.LOCK)
+                        .withKey("foo")
+                        .withVersion(lock1.value())
+                        .build();
+        MapUpdate<String, byte[]> update2 =
+                MapUpdate.<String, byte[]>newBuilder()
+                        .withType(MapUpdate.Type.LOCK)
+                        .withKey("bar")
+                        .withVersion(lock1.value())
+                        .build();
+
+        map.prepare(new TransactionLog<>(transactionId1, lock1.value(), Arrays.asList(update1, update2)))
+                .thenAccept(result -> {
+                    assertTrue(result);
+                }).join();
+
+        Version lock2 = map.begin(transactionId2).join();
+
+        MapUpdate<String, byte[]> update3 =
+                MapUpdate.<String, byte[]>newBuilder()
+                        .withType(MapUpdate.Type.LOCK)
+                        .withKey("foo")
+                        .withVersion(lock2.value())
+                        .build();
+
+        map.prepare(new TransactionLog<>(transactionId2, lock2.value(), Arrays.asList(update3)))
+                .thenAccept(result -> {
+                    assertFalse(result);
+                }).join();
+        map.rollback(transactionId2).join();
+
+        Version lock3 = map.begin(transactionId3).join();
+
+        MapUpdate<String, byte[]> update4 =
+                MapUpdate.<String, byte[]>newBuilder()
+                        .withType(MapUpdate.Type.LOCK)
+                        .withKey("baz")
+                        .withVersion(0)
+                        .build();
+
+        map.prepare(new TransactionLog<>(transactionId3, lock3.value(), Arrays.asList(update4)))
+                .thenAccept(result -> {
+                    assertFalse(result);
+                }).join();
+        map.rollback(transactionId3).join();
+
+        Version lock4 = map.begin(transactionId4).join();
+
+        MapUpdate<String, byte[]> update5 =
+                MapUpdate.<String, byte[]>newBuilder()
+                        .withType(MapUpdate.Type.LOCK)
+                        .withKey("baz")
+                        .withVersion(lock4.value())
+                        .build();
+
+        map.prepare(new TransactionLog<>(transactionId4, lock4.value(), Arrays.asList(update5)))
+                .thenAccept(result -> {
+                    assertTrue(result);
+                }).join();
+    }
+
     protected void transactionCommitTests() throws Throwable {
         final byte[] value1 = Tools.getBytesUtf8("value1");
         final byte[] value2 = Tools.getBytesUtf8("value2");
 
-        AtomixConsistentMap map = createAtomixClient().getResource("testCommitTestsMap",
-                                                                   AtomixConsistentMap.class).join();
+        AtomixConsistentMap map = newPrimitive("testCommitTestsMap");
         TestMapEventListener listener = new TestMapEventListener();
 
         map.addListener(listener).join();
 
-        // PUT_IF_ABSENT
+        TransactionId transactionId = TransactionId.from("tx1");
+
+        // Begin the transaction.
+        Version lock = map.begin(transactionId).join();
+
+        // PUT_IF_VERSION_MATCH
         MapUpdate<String, byte[]> update1 =
-                MapUpdate.<String, byte[]>newBuilder().withType(MapUpdate.Type.PUT_IF_ABSENT)
-                .withKey("foo")
-                .withValue(value1)
-                .build();
+                MapUpdate.<String, byte[]>newBuilder().withType(MapUpdate.Type.PUT_IF_VERSION_MATCH)
+                        .withKey("foo")
+                        .withValue(value1)
+                        .withVersion(lock.value())
+                        .build();
 
-        MapTransaction<String, byte[]> tx = new MapTransaction<>(TransactionId.from("tx1"), Arrays.asList(update1));
-
-        map.prepare(tx).thenAccept(result -> {
+        map.prepare(new TransactionLog<>(transactionId, lock.value(), Arrays.asList(update1))).thenAccept(result -> {
             assertEquals(true, result);
         }).join();
         // verify changes in Tx is not visible yet until commit
@@ -375,7 +489,7 @@ public class AtomixConsistentMapTest extends AtomixTestBase {
 
         assertFalse(listener.eventReceived());
 
-        map.commit(tx.transactionId()).join();
+        map.commit(transactionId).join();
         MapEvent<String, byte[]> event = listener.event();
         assertNotNull(event);
         assertEquals(MapEvent.Type.INSERT, event.type());
@@ -390,19 +504,21 @@ public class AtomixConsistentMapTest extends AtomixTestBase {
         assertEquals(MapEvent.Type.UPDATE, event.type());
         assertTrue(Arrays.equals(value2, event.newValue().value()));
 
-
         // REMOVE_IF_VERSION_MATCH
         byte[] currFoo = map.get("foo").get().value();
         long currFooVersion = map.get("foo").get().version();
         MapUpdate<String, byte[]> remove1 =
                 MapUpdate.<String, byte[]>newBuilder().withType(MapUpdate.Type.REMOVE_IF_VERSION_MATCH)
-                .withKey("foo")
-                .withCurrentVersion(currFooVersion)
-                .build();
+                        .withKey("foo")
+                        .withVersion(currFooVersion)
+                        .build();
 
-        tx = new MapTransaction<>(TransactionId.from("tx2"), Arrays.asList(remove1));
+        transactionId = TransactionId.from("tx2");
 
-        map.prepare(tx).thenAccept(result -> {
+        // Begin the transaction.
+        map.begin(transactionId).join();
+
+        map.prepare(new TransactionLog<>(transactionId, lock.value(), Arrays.asList(remove1))).thenAccept(result -> {
             assertTrue("prepare should succeed", result);
         }).join();
         // verify changes in Tx is not visible yet until commit
@@ -416,7 +532,7 @@ public class AtomixConsistentMapTest extends AtomixTestBase {
             assertThat(result.value(), is(currFoo));
         }).join();
 
-        map.commit(tx.transactionId()).join();
+        map.commit(transactionId).join();
         event = listener.event();
         assertNotNull(event);
         assertEquals(MapEvent.Type.REMOVE, event.type());
@@ -432,24 +548,28 @@ public class AtomixConsistentMapTest extends AtomixTestBase {
         final byte[] value1 = Tools.getBytesUtf8("value1");
         final byte[] value2 = Tools.getBytesUtf8("value2");
 
-        AtomixConsistentMap map = createAtomixClient().getResource("testTransactionRollbackTestsMap",
-                                                                   AtomixConsistentMap.class).join();
+        AtomixConsistentMap map = newPrimitive("testTransactionRollbackTestsMap");
         TestMapEventListener listener = new TestMapEventListener();
 
         map.addListener(listener).join();
 
+        TransactionId transactionId = TransactionId.from("tx1");
+
+        Version lock = map.begin(transactionId).join();
+
         MapUpdate<String, byte[]> update1 =
-                MapUpdate.<String, byte[]>newBuilder().withType(MapUpdate.Type.PUT_IF_ABSENT)
-                .withKey("foo")
-                .withValue(value1)
-                .build();
-        MapTransaction<String, byte[]> tx = new MapTransaction<>(TransactionId.from("tx1"), Arrays.asList(update1));
-        map.prepare(tx).thenAccept(result -> {
+                MapUpdate.<String, byte[]>newBuilder().withType(MapUpdate.Type.PUT_IF_VERSION_MATCH)
+                        .withKey("foo")
+                        .withValue(value1)
+                        .withVersion(lock.value())
+                        .build();
+
+        map.prepare(new TransactionLog<>(transactionId, lock.value(), Arrays.asList(update1))).thenAccept(result -> {
             assertEquals(true, result);
         }).join();
         assertFalse(listener.eventReceived());
 
-        map.rollback(tx.transactionId()).join();
+        map.rollback(transactionId).join();
         assertFalse(listener.eventReceived());
 
         map.get("foo").thenAccept(result -> {

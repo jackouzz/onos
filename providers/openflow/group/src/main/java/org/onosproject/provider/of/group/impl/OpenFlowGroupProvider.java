@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-present Open Networking Laboratory
+ * Copyright 2015-present Open Networking Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,22 +16,27 @@
 
 package org.onosproject.provider.of.group.impl;
 
+import static org.onlab.util.Tools.getIntegerProperty;
 import static org.slf4j.LoggerFactory.getLogger;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Dictionary;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Properties;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.felix.scr.annotations.Activate;
 import org.apache.felix.scr.annotations.Component;
 import org.apache.felix.scr.annotations.Deactivate;
+import org.apache.felix.scr.annotations.Modified;
+import org.apache.felix.scr.annotations.Property;
 import org.apache.felix.scr.annotations.Reference;
 import org.apache.felix.scr.annotations.ReferenceCardinality;
-import org.onosproject.core.DefaultGroupId;
+import org.onosproject.cfg.ComponentConfigService;
 import org.onosproject.core.GroupId;
 import org.onosproject.net.DeviceId;
 import org.onosproject.net.PortNumber;
@@ -58,6 +63,7 @@ import org.onosproject.openflow.controller.OpenFlowEventListener;
 import org.onosproject.openflow.controller.OpenFlowSwitch;
 import org.onosproject.openflow.controller.OpenFlowSwitchListener;
 import org.onosproject.openflow.controller.RoleState;
+import org.osgi.service.component.ComponentContext;
 import org.projectfloodlight.openflow.protocol.OFBucketCounter;
 import org.projectfloodlight.openflow.protocol.OFErrorMsg;
 import org.projectfloodlight.openflow.protocol.OFErrorType;
@@ -102,9 +108,18 @@ public class OpenFlowGroupProvider extends AbstractProvider implements GroupProv
     @Reference(cardinality = ReferenceCardinality.MANDATORY_UNARY)
     protected GroupService groupService;
 
+    @Reference(cardinality = ReferenceCardinality.MANDATORY_UNARY)
+    protected ComponentConfigService cfgService;
+
     private GroupProviderService providerService;
 
-    static final int POLL_INTERVAL = 10;
+    private static final int DEFAULT_POLL_INTERVAL = 10;
+    private static final String COMPONENT = "org.onosproject.provider.of.group.impl.OpenFlowGroupProvider";
+    private static final String GROUP_POLL_INTERVAL_CONST = "groupPollInterval";
+
+    @Property(name = "groupPollInterval", intValue = DEFAULT_POLL_INTERVAL,
+            label = "Frequency (in seconds) for polling group statistics")
+    private int groupPollInterval = DEFAULT_POLL_INTERVAL;
 
     private final InternalGroupProvider listener = new InternalGroupProvider();
 
@@ -125,14 +140,17 @@ public class OpenFlowGroupProvider extends AbstractProvider implements GroupProv
     }
 
     @Activate
-    public void activate() {
+    public void activate(ComponentContext context) {
+        cfgService.registerProperties(getClass());
         providerService = providerRegistry.register(this);
         controller.addListener(listener);
         controller.addEventListener(listener);
 
+        modified(context);
+
         for (OpenFlowSwitch sw : controller.getSwitches()) {
             if (isGroupSupported(sw)) {
-                GroupStatsCollector gsc = new GroupStatsCollector(sw, POLL_INTERVAL);
+                GroupStatsCollector gsc = new GroupStatsCollector(sw, groupPollInterval);
                 gsc.start();
                 collectors.put(new Dpid(sw.getId()), gsc);
             }
@@ -143,6 +161,7 @@ public class OpenFlowGroupProvider extends AbstractProvider implements GroupProv
 
     @Deactivate
     public void deactivate() {
+        cfgService.unregisterProperties(getClass(), false);
         providerRegistry.unregister(this);
         providerService = null;
         collectors.values().forEach(GroupStatsCollector::stop);
@@ -150,6 +169,25 @@ public class OpenFlowGroupProvider extends AbstractProvider implements GroupProv
         log.info("Stopped");
     }
 
+    @Modified
+    public void modified(ComponentContext context) {
+        Dictionary<?, ?> properties = context != null ? context.getProperties() : new Properties();
+        Integer newGroupPollInterval = getIntegerProperty(properties, GROUP_POLL_INTERVAL_CONST);
+        if (newGroupPollInterval != null && newGroupPollInterval > 0
+                && newGroupPollInterval != groupPollInterval) {
+            groupPollInterval = newGroupPollInterval;
+            modifyPollInterval();
+        } else if (newGroupPollInterval != null && newGroupPollInterval <= 0) {
+            log.warn("groupPollInterval must be greater than 0");
+            //If the new value <= 0 reset property with old value.
+            cfgService.setProperty(COMPONENT, GROUP_POLL_INTERVAL_CONST, Integer.toString(groupPollInterval));
+        }
+    }
+
+    private void modifyPollInterval() {
+        collectors.values().forEach(gsc -> gsc.adjustRate(groupPollInterval));
+
+    }
     @Override
     public void performGroupOperation(DeviceId deviceId, GroupOperations groupOps) {
         final Dpid dpid = Dpid.dpid(deviceId.uri());
@@ -191,7 +229,7 @@ public class OpenFlowGroupProvider extends AbstractProvider implements GroupProv
                     return;
             }
             sw.sendMsg(groupMod);
-            GroupId groudId = new DefaultGroupId(groupMod.getGroup().getGroupNumber());
+            GroupId groudId = new GroupId(groupMod.getGroup().getGroupNumber());
             pendingGroupOperations.put(groudId, groupOperation);
             pendingXidMaps.put(groudId, groupModXid);
         }
@@ -245,7 +283,7 @@ public class OpenFlowGroupProvider extends AbstractProvider implements GroupProv
 
         for (OFGroupDescStatsEntry entry: groupDescStatsReply.getEntries()) {
             int id = entry.getGroup().getGroupNumber();
-            GroupId groupId = new DefaultGroupId(id);
+            GroupId groupId = new GroupId(id);
             GroupDescription.Type type = getGroupType(entry.getGroupType());
             GroupBuckets buckets = new GroupBucketEntryBuilder(dpid, entry.getBuckets(),
                     entry.getGroupType(), driverService).build();
@@ -375,9 +413,9 @@ public class OpenFlowGroupProvider extends AbstractProvider implements GroupProv
                 return;
             }
             if (isGroupSupported(sw)) {
-                GroupStatsCollector gsc = new GroupStatsCollector(sw, POLL_INTERVAL);
-                gsc.start();
+                GroupStatsCollector gsc = new GroupStatsCollector(sw, groupPollInterval);
                 stopCollectorIfNeeded(collectors.put(dpid, gsc));
+                gsc.start();
             }
 
             //figure out race condition

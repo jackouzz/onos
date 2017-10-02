@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-present Open Networking Laboratory
+ * Copyright 2016-present Open Networking Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -273,7 +273,7 @@ public class OspfAreaImpl implements OspfArea {
         ChecksumCalculator checksum = new ChecksumCalculator();
         byte[] lsaBytes = routerLsa.asBytes();
         routerLsa.setLsPacketLen(lsaBytes.length);
-        //Convert lsa object to byte again to reflect the packet length whic we added.
+        //Convert lsa object to byte again to reflect the packet length which we added.
         lsaBytes = routerLsa.asBytes();
         //find the checksum
         byte[] twoByteChecksum = checksum.calculateLsaChecksum(lsaBytes,
@@ -668,7 +668,7 @@ public class OspfAreaImpl implements OspfArea {
                         }
                     }
                 }
-                if (recLsa.advertisingRouter().equals((String) neighborIP)) {
+                if (recLsa.advertisingRouter().toString().equals((String) neighborIP)) {
                     continue;
                 }
                 if ((recLsa.lsType() == OspfParameters.LINK_LOCAL_OPAQUE_LSA ||

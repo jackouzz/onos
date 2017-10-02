@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-present Open Networking Laboratory
+ * Copyright 2014-present Open Networking Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,6 +40,7 @@ import org.onosproject.net.flow.instructions.L3ModificationInstruction.ModTtlIns
 import org.onosproject.net.flow.instructions.L4ModificationInstruction.L4SubType;
 import org.onosproject.net.flow.instructions.L4ModificationInstruction.ModTransportPortInstruction;
 import org.onosproject.net.meter.MeterId;
+import org.onosproject.net.pi.runtime.PiTableAction;
 
 import java.util.Objects;
 
@@ -469,6 +470,17 @@ public final class Instructions {
     public static L4ModificationInstruction modUdpDst(TpPort port) {
         checkNotNull(port, "Dst UDP port cannot be null");
         return new ModTransportPortInstruction(L4SubType.UDP_DST, port);
+    }
+
+    /**
+     * Creates a protocol independent instruction.
+     *
+     * @param piTableAction protocol independent instruction
+     * @return extension instruction
+     */
+    public static PiInstruction piTableAction(PiTableAction piTableAction) {
+        checkNotNull(piTableAction, "PiTableAction instruction cannot be null");
+        return new PiInstruction(piTableAction);
     }
 
     /**

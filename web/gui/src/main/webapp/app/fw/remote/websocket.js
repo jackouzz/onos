@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-present Open Networking Laboratory
+ * Copyright 2015-present Open Networking Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,24 +24,23 @@
     var $log, $loc, fs, ufs, wsock, vs, ls;
 
     // internal state
-    var webSockOpts,            // web socket options
-        ws = null,              // web socket reference
-        wsUp = false,           // web socket is good to go
-        handlers = {},          // event handler bindings
-        pendingEvents = [],     // events TX'd while socket not up
-        host,                   // web socket host
-        url,                    // web socket URL
-        clusterNodes = [],      // ONOS instances data for failover
-        clusterIndex = -1,      // the instance to which we are connected
-        connectRetries = 0,     // limit our attempts at reconnecting
-        openListeners = {},     // registered listeners for websocket open()
-        nextListenerId = 1,     // internal ID for open listeners
-        loggedInUser = null;    // name of logged-in user
+    var webSockOpts, // web socket options
+        ws = null, // web socket reference
+        wsUp = false, // web socket is good to go
+        handlers = {}, // event handler bindings
+        pendingEvents = [], // events TX'd while socket not up
+        host, // web socket host
+        url, // web socket URL
+        clusterNodes = [], // ONOS instances data for failover
+        clusterIndex = -1, // the instance to which we are connected
+        connectRetries = 0, // limit our attempts at reconnecting
+        openListeners = {}, // registered listeners for websocket open()
+        nextListenerId = 1, // internal ID for open listeners
+        loggedInUser = null; // name of logged-in user
 
-    // =======================
-    // === Bootstrap Handler
-
+    // built-in handlers
     var builtinHandlers = {
+
         bootstrap: function (data) {
             $log.debug('bootstrap data', data);
             loggedInUser = data.user;
@@ -53,7 +52,19 @@
                     // TODO: add connect info to masthead somewhere
                 }
             });
-        }
+        },
+
+        error: function (data) {
+            var m = data.message || 'error from server';
+            $log.error(m, data);
+
+            // Unrecoverable error - throw up the veil...
+            vs && vs.show([
+                'Oops!',
+                'Server reports error...',
+                m,
+            ]);
+        },
     };
 
 
@@ -118,7 +129,7 @@
             vs && vs.show([
                 'Oops!',
                 'Web-socket connection to server closed...',
-                'Try refreshing the page.'
+                'Try refreshing the page.',
             ]);
         }
     }
@@ -183,7 +194,7 @@
 
     // Currently supported opts:
     //   wsport: web socket port (other than default 8181)
-    // host: if defined, is the host address to use
+    //   host:   if defined, is the host address to use
     function createWebSocket(opts, _host_) {
         var wsport = (opts && opts.wsport) || null;
 
@@ -198,6 +209,8 @@
             ws.onopen = handleOpen;
             ws.onmessage = handleMessage;
             ws.onclose = handleClose;
+
+            sendEvent('authentication', { token: onosAuth });
         }
         // Note: Wsock logs an error if the new WebSocket call fails
         return url;
@@ -286,7 +299,7 @@
     function sendEvent(evType, payload) {
         var ev = {
                 event: evType,
-                payload: payload || {}
+                payload: payload || {},
             };
 
         if (wsUp) {
@@ -334,9 +347,9 @@
                 loggedInUser: function () { return loggedInUser || '(no-one)'; },
 
                 _setVeilDelegate: setVeilDelegate,
-                _setLoadingDelegate: setLoadingDelegate
+                _setLoadingDelegate: setLoadingDelegate,
             };
-        }
+        },
     ]);
 
 }());

@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-present Open Networking Laboratory
+ * Copyright 2016-present Open Networking Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,12 +33,15 @@ import org.onosproject.core.HybridLogicalTime;
 import org.onosproject.net.provider.ProviderId;
 import org.onosproject.store.cluster.messaging.Endpoint;
 
+import java.net.ConnectException;
 import java.util.Arrays;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -127,6 +130,7 @@ public class NettyMessagingManagerTest {
         response = netty1.sendAsync(invalidEndPoint, subject, "hello world".getBytes());
         response.whenComplete((r, e) -> {
             assertNotNull(e);
+            assertTrue(e instanceof ConnectException);
             latch2.countDown();
         });
         Uninterruptibles.awaitUninterruptibly(latch2);
@@ -153,6 +157,20 @@ public class NettyMessagingManagerTest {
         assertTrue(handlerInvoked.get());
         assertTrue(Arrays.equals(request.get(), "hello world".getBytes()));
         assertEquals(ep1, sender.get());
+    }
+
+    @Test
+    public void testSendTimeout() {
+        String subject = nextSubject();
+        BiFunction<Endpoint, byte[], CompletableFuture<byte[]>> handler = (ep, payload) -> new CompletableFuture<>();
+        netty2.registerHandler(subject, handler);
+
+        try {
+            netty1.sendAndReceive(ep2, subject, "hello world".getBytes()).join();
+            fail();
+        } catch (CompletionException e) {
+            assertTrue(e.getCause() instanceof TimeoutException);
+        }
     }
 
     /*

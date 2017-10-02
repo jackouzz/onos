@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-present Open Networking Laboratory
+ * Copyright 2015-present Open Networking Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -322,6 +322,7 @@ public class BgpOpenMsgVer4 implements BgpOpenMsg {
         private boolean isFlowSpecCapabilityTlvSet = false;
         private boolean isVpnFlowSpecCapabilityTlvSet = false;
         private boolean isFlowSpecRpdCapabilityTlvSet = false;
+        private boolean isEvpnCapabilityTlvSet = false;
 
         LinkedList<BgpValueType> capabilityTlv = new LinkedList<>();
 
@@ -378,6 +379,12 @@ public class BgpOpenMsgVer4 implements BgpOpenMsg {
                 this.capabilityTlv.add(tlv);
             }
 
+            if (this.isEvpnCapabilityTlvSet) {
+                BgpValueType tlv;
+                tlv = new MultiProtocolExtnCapabilityTlv(Constants.AFI_EVPN_VALUE,
+                        RES, Constants.SAFI_EVPN_VALUE);
+                this.capabilityTlv.add(tlv);
+            }
 
             return new BgpOpenMsgVer4(bgpMsgHeader, PACKET_VERSION, this.asNumber, holdTime, this.bgpId,
                        this.capabilityTlv);
@@ -443,6 +450,12 @@ public class BgpOpenMsgVer4 implements BgpOpenMsg {
         @Override
         public Builder setFlowSpecRpdCapabilityTlv(boolean isFlowSpecRpdCapabilityTlvSet) {
             this.isFlowSpecRpdCapabilityTlvSet = isFlowSpecRpdCapabilityTlvSet;
+            return this;
+        }
+
+        @Override
+        public Builder setEvpnCapabilityTlv(boolean isEvpnCapabilitySet) {
+            this.isEvpnCapabilityTlvSet = isEvpnCapabilitySet;
             return this;
         }
     }

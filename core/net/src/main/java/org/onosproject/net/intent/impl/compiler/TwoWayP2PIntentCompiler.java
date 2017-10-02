@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-present Open Networking Laboratory
+ * Copyright 2015-present Open Networking Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -54,6 +54,7 @@ public class TwoWayP2PIntentCompiler
                         .egressPoint(intent.two())
                         .constraints(intent.constraints())
                         .priority(intent.priority())
+                        .resourceGroup(intent.resourceGroup())
                         .build(),
                 PointToPointIntent.builder()
                         .appId(intent.appId())
@@ -64,6 +65,7 @@ public class TwoWayP2PIntentCompiler
                         .egressPoint(intent.one())
                         .constraints(intent.constraints())
                         .priority(intent.priority())
+                        .resourceGroup(intent.resourceGroup())
                         .build());
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-present Open Networking Laboratory
+ * Copyright 2017-present Open Networking Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,17 +17,33 @@
 package org.onosproject.drivers.bmv2;
 
 import org.apache.felix.scr.annotations.Component;
+import org.apache.felix.scr.annotations.Reference;
+import org.apache.felix.scr.annotations.ReferenceCardinality;
 import org.onosproject.net.driver.AbstractDriverLoader;
+import org.onosproject.net.pi.runtime.PiPipeconfService;
 
 /**
- * Loader for BMv2 drivers from xml file.
+ * Loader for P4Runtime device drivers.
  */
 @Component(immediate = true)
 public class Bmv2DriversLoader extends AbstractDriverLoader {
 
-    private static final String DRIVERS_XML = "/bmv2-drivers.xml";
+    @Reference(cardinality = ReferenceCardinality.MANDATORY_UNARY)
+    protected PiPipeconfService pipeconfService;
 
     public Bmv2DriversLoader() {
-        super(DRIVERS_XML);
+        super("/bmv2-drivers.xml");
+    }
+
+    @Override
+    public void activate() {
+        pipeconfService.register(Bmv2DefaultPipeconfFactory.get());
+        super.activate();
+    }
+
+    @Override
+    public void deactivate() {
+        pipeconfService.remove(Bmv2DefaultPipeconfFactory.get().id());
+        super.deactivate();
     }
 }

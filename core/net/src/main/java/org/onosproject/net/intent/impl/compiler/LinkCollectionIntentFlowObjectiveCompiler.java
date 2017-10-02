@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-present Open Networking Laboratory
+ * Copyright 2016-present Open Networking Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -52,7 +52,9 @@ import java.util.Set;
 
 /**
  * Compiler to produce flow objectives from link collections.
+ * @deprecated 1.10 Kingfisher
  */
+@Deprecated
 @Component(immediate = true)
 public class LinkCollectionIntentFlowObjectiveCompiler
         extends LinkCollectionCompiler<Objective>
@@ -100,7 +102,7 @@ public class LinkCollectionIntentFlowObjectiveCompiler
 
         if (encapConstraint.isPresent()) {
             labels = labelAllocator.assignLabelToPorts(intent.links(),
-                                                       intent.id(),
+                                                       intent.key(),
                                                        encapConstraint.get().encapType());
         }
 
@@ -119,7 +121,15 @@ public class LinkCollectionIntentFlowObjectiveCompiler
             });
         }
         return Collections.singletonList(
-                new FlowObjectiveIntent(appId, intent.key(), devices, objectives, intent.resources()));
+                new FlowObjectiveIntent(appId, intent.key(), devices,
+                                        objectives,
+                                        intent.resources(),
+                                        intent.resourceGroup()));
+    }
+
+    @Override
+    boolean optimizeTreatments() {
+        return false;
     }
 
     @Override

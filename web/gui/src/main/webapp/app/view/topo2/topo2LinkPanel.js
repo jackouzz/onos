@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-present Open Networking Laboratory
+ * Copyright 2016-present Open Networking Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -42,7 +42,7 @@
             propOrder: [
                 'Type', '-',
                 'A Type', 'A Id', 'A Label', 'A Port', '-',
-                'B Type', 'B Id', 'B Label', 'B Port'
+                'B Type', 'B Id', 'B Label', 'B Port',
             ],
             props: {
                 '-': '',
@@ -54,8 +54,8 @@
                 'B Type': target.get('nodeType'),
                 'B Id': target.get('id'),
                 'B Label': target.get('props').name,
-                'B Port': data.get('portB') || 'N/A'
-            }
+                'B Port': data.get('portB') || 'N/A',
+            },
         };
     }
 
@@ -67,7 +67,7 @@
     }
 
     function render() {
-        linkPanel.el.show();
+        linkPanel.show();
         linkPanel.emptyRegions();
 
         var svg = linkPanel.appendToHeader('div')
@@ -83,7 +83,7 @@
     }
 
     function show() {
-        linkPanel.el.show();
+        linkPanel.show();
     }
 
     function hide() {
@@ -117,9 +117,9 @@
                 hide: hide,
                 toggle: toggle,
                 destroy: destroy,
-                isVisible: function () { return linkPanel.isVisible(); }
+                isVisible: function () { return linkPanel.isVisible(); },
             };
-        }
+        },
     ]);
 
 })();

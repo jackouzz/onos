@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-present Open Networking Laboratory
+ * Copyright 2015-present Open Networking Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -644,7 +644,7 @@ public class VtnManager implements VtnService {
         Subnet subnet = subnetService.getSubnet(subnetId);
         String deviceOwner = virtualPort.deviceOwner();
         if (deviceOwner != null) {
-            if (deviceOwner.equalsIgnoreCase("network:dhcp")) {
+            if ("network:dhcp".equalsIgnoreCase(deviceOwner)) {
                 Sets.newHashSet(devices).stream()
                         .filter(d -> d.type() == Device.Type.SWITCH)
                         .forEach(d -> {
@@ -942,11 +942,14 @@ public class VtnManager implements VtnService {
         HostId hostId = HostId.hostId(vPort.macAddress());
         BasicHostConfig basicHostConfig = networkConfigService.addConfig(hostId,
                                                                          BasicHostConfig.class);
-        Set<IpAddress> ips = hostService.getHost(hostId).ipAddresses();
+        Set<IpAddress> oldIps = hostService.getHost(hostId).ipAddresses();
+        // Copy to a new set as oldIps is unmodifiable set.
+        Set<IpAddress> newIps = new HashSet<>();
+        newIps.addAll(oldIps);
         for (FixedIp fixedIp : vPort.fixedIps()) {
-            ips.remove(fixedIp.ip());
+            newIps.remove(fixedIp.ip());
         }
-        basicHostConfig.setIps(ips).apply();
+        basicHostConfig.setIps(newIps).apply();
     }
 
     private void programInterfacesSet(Set<RouterInterface> interfacesSet,

@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-present Open Networking Laboratory
+ * Copyright 2015-present Open Networking Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,7 +23,8 @@ import org.apache.felix.scr.annotations.Reference;
 import org.apache.felix.scr.annotations.ReferenceCardinality;
 import org.apache.felix.scr.annotations.Service;
 import org.onosproject.core.CoreService;
-import org.onosproject.incubator.net.config.basics.InterfaceConfig;
+import org.onosproject.net.config.basics.InterfaceConfig;
+import org.onosproject.incubator.net.config.basics.PortDescriptionsConfig;
 import org.onosproject.net.ConnectPoint;
 import org.onosproject.net.DeviceId;
 import org.onosproject.net.HostId;
@@ -36,6 +37,7 @@ import org.onosproject.net.config.basics.BasicHostConfig;
 import org.onosproject.net.config.basics.BasicLinkConfig;
 import org.onosproject.net.config.basics.BasicRegionConfig;
 import org.onosproject.net.config.basics.BasicUiTopoLayoutConfig;
+import org.onosproject.net.config.basics.PortAnnotationConfig;
 import org.onosproject.net.config.basics.SubjectFactories;
 import org.onosproject.net.region.RegionId;
 import org.onosproject.ui.model.topo.UiTopoLayoutId;
@@ -60,6 +62,7 @@ public class BasicNetworkConfigs implements BasicNetworkConfigService {
 
     private static final String BASIC = "basic";
     private static final String INTERFACES = "interfaces";
+    private static final String PORTS = "ports";
 
     private final Logger log = LoggerFactory.getLogger(getClass());
 
@@ -91,7 +94,7 @@ public class BasicNetworkConfigs implements BasicNetworkConfigService {
             },
             new ConfigFactory<LinkKey, BasicLinkConfig>(LINK_SUBJECT_FACTORY,
                     BasicLinkConfig.class,
-                    BASIC) {
+                    BasicLinkConfig.CONFIG_KEY) {
                 @Override
                 public BasicLinkConfig createConfig() {
                     return new BasicLinkConfig();
@@ -112,7 +115,24 @@ public class BasicNetworkConfigs implements BasicNetworkConfigService {
                 public BasicUiTopoLayoutConfig createConfig() {
                     return new BasicUiTopoLayoutConfig();
                 }
+            },
+            new ConfigFactory<ConnectPoint, PortAnnotationConfig>(CONNECT_POINT_SUBJECT_FACTORY,
+                    PortAnnotationConfig.class,
+                    PortAnnotationConfig.CONFIG_KEY) {
+                @Override
+                public PortAnnotationConfig createConfig() {
+                    return new PortAnnotationConfig();
+                }
+            },
+            new ConfigFactory<DeviceId, PortDescriptionsConfig>(DEVICE_SUBJECT_FACTORY,
+                    PortDescriptionsConfig.class,
+                    PORTS) {
+                @Override
+                public PortDescriptionsConfig createConfig() {
+                    return new PortDescriptionsConfig();
+                }
             }
+
     );
 
     @Reference(cardinality = ReferenceCardinality.MANDATORY_UNARY)

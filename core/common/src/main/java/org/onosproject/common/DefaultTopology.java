@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-present Open Networking Laboratory
+ * Copyright 2015-present Open Networking Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,6 +27,8 @@ import org.onlab.graph.DijkstraGraphSearch;
 import org.onlab.graph.DisjointPathPair;
 import org.onlab.graph.GraphPathSearch;
 import org.onlab.graph.GraphPathSearch.Result;
+import org.onlab.graph.KShortestPathsSearch;
+import org.onlab.graph.LazyKShortestPathsSearch;
 import org.onlab.graph.ScalarWeight;
 import org.onlab.graph.SrlgGraphSearch;
 import org.onlab.graph.SuurballeGraphSearch;
@@ -62,6 +64,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Preconditions.checkArgument;
@@ -86,6 +89,11 @@ public class DefaultTopology extends AbstractModel implements Topology {
             new TarjanGraphSearch<>();
     private static final SuurballeGraphSearch<TopologyVertex, TopologyEdge> SUURBALLE =
             new SuurballeGraphSearch<>();
+    private static final KShortestPathsSearch<TopologyVertex, TopologyEdge> KSHORTEST =
+            new KShortestPathsSearch<>();
+    private static final LazyKShortestPathsSearch<TopologyVertex, TopologyEdge> LAZY_KSHORTEST =
+            new LazyKShortestPathsSearch<>();
+
 
     private static LinkWeigher defaultLinkWeigher = null;
     private static GraphPathSearch<TopologyVertex, TopologyEdge> defaultGraphPathSearch = null;
@@ -387,7 +395,88 @@ public class DefaultTopology extends AbstractModel implements Topology {
     }
 
     /**
-     * /**
+     * Computes on-demand the k-shortest paths between source and
+     * destination devices.
+     *
+     * @param src    source device
+     * @param dst    destination device
+     * @param maxPaths maximum number of paths (k)
+     * @return set of k-shortest paths
+     */
+    public Set<Path> getKShortestPaths(DeviceId src, DeviceId dst,
+                                       int maxPaths) {
+
+        return getKShortestPaths(src, dst, linkWeight(), maxPaths);
+    }
+
+    /**
+     * Computes on-demand the k-shortest paths between source and
+     * destination devices.
+     *
+     * The first {@code maxPaths} paths will be returned
+     * in ascending order according to the provided {@code weigher}
+     *
+     * @param src    source device
+     * @param dst    destination device
+     * @param weigher link weight function
+     * @param maxPaths maximum number of paths (k)
+     * @return set of k-shortest paths
+     */
+    public Set<Path> getKShortestPaths(DeviceId src, DeviceId dst,
+                                       LinkWeigher weigher,
+                                       int maxPaths) {
+        DefaultTopologyVertex srcV = new DefaultTopologyVertex(src);
+        DefaultTopologyVertex dstV = new DefaultTopologyVertex(dst);
+        Set<TopologyVertex> vertices = graph.getVertexes();
+        if (!vertices.contains(srcV) || !vertices.contains(dstV)) {
+            // src or dst not part of the current graph
+            return ImmutableSet.of();
+        }
+
+        return KSHORTEST.search(graph, srcV, dstV, weigher, maxPaths)
+                .paths().stream()
+                    .map(this::networkPath)
+                    .collect(ImmutableSet.toImmutableSet());
+    }
+
+    /**
+     * Lazily computes on-demand the k-shortest paths between source and
+     * destination devices.
+     *
+     *
+     * @param src    source device
+     * @param dst    destination device
+     * @return stream of k-shortest paths
+     */
+    public Stream<Path> getKShortestPaths(DeviceId src, DeviceId dst) {
+        return getKShortestPaths(src, dst, linkWeight());
+    }
+
+    /**
+     * Lazily computes on-demand the k-shortest paths between source and
+     * destination devices.
+     *
+     *
+     * @param src    source device
+     * @param dst    destination device
+     * @param weigher link weight function
+     * @return stream of k-shortest paths
+     */
+    public Stream<Path> getKShortestPaths(DeviceId src, DeviceId dst,
+                                          LinkWeigher weigher) {
+        DefaultTopologyVertex srcV = new DefaultTopologyVertex(src);
+        DefaultTopologyVertex dstV = new DefaultTopologyVertex(dst);
+        Set<TopologyVertex> vertices = graph.getVertexes();
+        if (!vertices.contains(srcV) || !vertices.contains(dstV)) {
+            // src or dst not part of the current graph
+            return Stream.empty();
+        }
+
+        return LAZY_KSHORTEST.lazyPathSearch(graph, srcV, dstV, weigher)
+                    .map(this::networkPath);
+    }
+
+    /**
      * Returns the set of pre-computed shortest disjoint path pairs between
      * source and destination devices.
      *

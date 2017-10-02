@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-present Open Networking Laboratory
+ * Copyright 2016-present Open Networking Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -42,12 +42,12 @@ import org.onosproject.store.primitives.PartitionService;
 import org.onosproject.store.primitives.TransactionId;
 import org.onosproject.store.serializers.KryoNamespaces;
 import org.onosproject.store.service.AsyncAtomicValue;
-import org.onosproject.store.service.AsyncConsistentMap;
 import org.onosproject.store.service.AsyncDocumentTree;
 import org.onosproject.store.service.AsyncConsistentMultimap;
 import org.onosproject.store.service.AsyncConsistentTreeMap;
 import org.onosproject.store.service.AtomicCounterBuilder;
 import org.onosproject.store.service.AtomicCounterMapBuilder;
+import org.onosproject.store.service.AtomicIdGeneratorBuilder;
 import org.onosproject.store.service.AtomicValueBuilder;
 import org.onosproject.store.service.ConsistentMap;
 import org.onosproject.store.service.ConsistentMapBuilder;
@@ -69,7 +69,6 @@ import org.onosproject.store.service.WorkQueueStats;
 import org.slf4j.Logger;
 
 import com.google.common.collect.Maps;
-import com.google.common.util.concurrent.Futures;
 
 /**
  * Implementation for {@code StorageService} and {@code StorageAdminService}.
@@ -77,6 +76,8 @@ import com.google.common.util.concurrent.Futures;
 @Service
 @Component(immediate = true)
 public class StorageManager implements StorageService, StorageAdminService {
+
+    private static final int BUCKETS = 128;
 
     private final Logger log = getLogger(getClass());
 
@@ -98,8 +99,7 @@ public class StorageManager implements StorageService, StorageAdminService {
     private final Supplier<TransactionId> transactionIdGenerator =
             () -> TransactionId.from(UUID.randomUUID().toString());
     private DistributedPrimitiveCreator federatedPrimitiveCreator;
-    private AsyncConsistentMap<TransactionId, Transaction.State> transactions;
-    private TransactionCoordinator transactionCoordinator;
+    private TransactionManager transactionManager;
 
     @Activate
     public void activate() {
@@ -107,14 +107,8 @@ public class StorageManager implements StorageService, StorageAdminService {
         partitionService.getAllPartitionIds().stream()
             .filter(id -> !id.equals(PartitionId.from(0)))
             .forEach(id -> partitionMap.put(id, partitionService.getDistributedPrimitiveCreator(id)));
-        federatedPrimitiveCreator = new FederatedDistributedPrimitiveCreator(partitionMap);
-        transactions = this.<TransactionId, Transaction.State>consistentMapBuilder()
-                    .withName("onos-transactions")
-                    .withSerializer(Serializer.using(KryoNamespaces.API,
-                            Transaction.class,
-                            Transaction.State.class))
-                    .buildAsyncMap();
-        transactionCoordinator = new TransactionCoordinator(transactions);
+        federatedPrimitiveCreator = new FederatedDistributedPrimitiveCreator(partitionMap, BUCKETS);
+        transactionManager = new TransactionManager(this, partitionService, BUCKETS);
         log.info("Started");
     }
 
@@ -175,6 +169,12 @@ public class StorageManager implements StorageService, StorageAdminService {
     }
 
     @Override
+    public AtomicIdGeneratorBuilder atomicIdGeneratorBuilder() {
+        checkPermission(STORAGE_WRITE);
+        return new DefaultAtomicIdGeneratorBuilder(federatedPrimitiveCreator);
+    }
+
+    @Override
     public <V> AtomicValueBuilder<V> atomicValueBuilder() {
         checkPermission(STORAGE_WRITE);
         Supplier<ConsistentMapBuilder<String, byte[]>> mapBuilderSupplier =
@@ -187,9 +187,7 @@ public class StorageManager implements StorageService, StorageAdminService {
     @Override
     public TransactionContextBuilder transactionContextBuilder() {
         checkPermission(STORAGE_WRITE);
-        return new DefaultTransactionContextBuilder(transactionIdGenerator.get(),
-                federatedPrimitiveCreator,
-                transactionCoordinator);
+        return new DefaultTransactionContextBuilder(transactionIdGenerator.get(), transactionManager);
     }
 
     @Override
@@ -259,7 +257,7 @@ public class StorageManager implements StorageService, StorageAdminService {
 
     @Override
     public Collection<TransactionId> getPendingTransactions() {
-        return Futures.getUnchecked(transactions.keySet());
+        return transactionManager.getPendingTransactions();
     }
 
     private List<MapInfo> listMapInfo(DistributedPrimitiveCreator creator) {

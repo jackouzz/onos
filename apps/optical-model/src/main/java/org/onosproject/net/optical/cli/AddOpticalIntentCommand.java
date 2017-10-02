@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-present Open Networking Laboratory
+ * Copyright 2016-present Open Networking Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,13 +18,17 @@ package org.onosproject.net.optical.cli;
 import org.apache.karaf.shell.commands.Argument;
 import org.apache.karaf.shell.commands.Command;
 import org.apache.karaf.shell.commands.Option;
+import org.onlab.util.Spectrum;
 import org.onosproject.cli.app.AllApplicationNamesCompleter;
 import org.onosproject.cli.net.ConnectPointCompleter;
 import org.onosproject.cli.net.ConnectivityIntentCommand;
+import org.onosproject.net.ChannelSpacing;
 import org.onosproject.net.CltSignalType;
 import org.onosproject.net.ConnectPoint;
 import org.onosproject.net.Device;
 import org.onosproject.net.DeviceId;
+import org.onosproject.net.GridType;
+import org.onosproject.net.OchSignal;
 import org.onosproject.net.OduSignalType;
 import org.onosproject.net.Port;
 import org.onosproject.net.device.DeviceService;
@@ -56,21 +60,27 @@ public class AddOpticalIntentCommand extends ConnectivityIntentCommand {
     @SuppressWarnings("unused")
     private AllApplicationNamesCompleter appCompleter;
 
-    @Argument(index = 0, name = "ingressDevice",
+    @Argument(index = 0, name = "ingress",
               description = "Ingress Device/Port Description",
               required = true, multiValued = false)
-    String ingressDeviceString = "";
+    String ingressString = "";
 
-    @Argument(index = 1, name = "egressDevice",
+    @Argument(index = 1, name = "egress",
               description = "Egress Device/Port Description",
               required = true, multiValued = false)
-    String egressDeviceString = "";
+    String egressString = "";
 
     @Option(name = "-b", aliases = "--bidirectional",
             description = "If this argument is passed the optical link created will be bidirectional, " +
             "else the link will be unidirectional.",
             required = false, multiValued = false)
     private boolean bidirectional = false;
+
+    @Option(name = "-c", aliases = "--channel",
+            description = "Optical channel in GHz to use for the intent (e.g., 193.1). " +
+            "Uses 50 GHz spaced DWDM channel plan by default.",
+            required = false, multiValued = false)
+    private Double channel;
 
 
     private ConnectPoint createConnectPoint(String devicePortString) {
@@ -93,12 +103,22 @@ public class AddOpticalIntentCommand extends ConnectivityIntentCommand {
         return null;
     }
 
+    private OchSignal createOchSignal(Double channel) {
+        if (channel == null) {
+            return null;
+        }
+
+        ChannelSpacing spacing = ChannelSpacing.CHL_50GHZ;
+        int multiplier = (int) (Math.round(channel - Spectrum.CENTER_FREQUENCY.asHz() / spacing.frequency().asHz()));
+        return new OchSignal(GridType.DWDM, spacing, multiplier, 4);
+    }
+
     @Override
     protected void execute() {
         IntentService service = get(IntentService.class);
 
-        ConnectPoint ingress = createConnectPoint(ingressDeviceString);
-        ConnectPoint egress = createConnectPoint(egressDeviceString);
+        ConnectPoint ingress = createConnectPoint(ingressString);
+        ConnectPoint egress = createConnectPoint(egressString);
 
         if (ingress == null || egress == null) {
             print("Invalid endpoint(s); could not create optical intent");
@@ -123,7 +143,8 @@ public class AddOpticalIntentCommand extends ConnectivityIntentCommand {
             }
 
             CltSignalType signalType = ((OduCltPort) srcPort).signalType();
-            if (Device.Type.ROADM.equals(srcDevice.type())) {
+            if (Device.Type.ROADM.equals(srcDevice.type()) ||
+                    Device.Type.ROADM_OTN.equals(srcDevice.type())) {
                 intent = OpticalCircuitIntent.builder()
                         .appId(appId())
                         .key(key())
@@ -154,19 +175,7 @@ public class AddOpticalIntentCommand extends ConnectivityIntentCommand {
                     .dst(egress)
                     .signalType(signalType)
                     .bidirectional(bidirectional)
-                    .build();
-        } else if (srcPort instanceof org.onosproject.net.OchPort &&
-                   dstPort instanceof org.onosproject.net.OchPort) {
-            print("WARN: encountered old OchPort model");
-            // old OchPort model can be removed when ready
-            OduSignalType signalType = ((org.onosproject.net.OchPort) srcPort).signalType();
-            intent = OpticalConnectivityIntent.builder()
-                    .appId(appId())
-                    .key(key())
-                    .src(ingress)
-                    .dst(egress)
-                    .signalType(signalType)
-                    .bidirectional(bidirectional)
+                    .ochSignal(createOchSignal(channel))
                     .build();
         } else {
             print("Unable to create optical intent between connect points %s and %s", ingress, egress);

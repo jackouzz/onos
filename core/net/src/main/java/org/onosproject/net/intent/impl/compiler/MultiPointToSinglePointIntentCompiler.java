@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-present Open Networking Laboratory
+ * Copyright 2015-present Open Networking Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,12 +32,13 @@ import org.onosproject.net.intent.IntentException;
 import org.onosproject.net.intent.IntentExtensionService;
 import org.onosproject.net.intent.LinkCollectionIntent;
 import org.onosproject.net.intent.MultiPointToSinglePointIntent;
-import org.onosproject.net.intent.PointToPointIntent;
 
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.onosproject.net.intent.constraint.PartialFailureConstraint.intentAllowsPartialFailure;
 
@@ -63,7 +64,7 @@ public class MultiPointToSinglePointIntentCompiler
 
     @Deactivate
     public void deactivate() {
-        intentManager.unregisterCompiler(PointToPointIntent.class);
+        intentManager.unregisterCompiler(MultiPointToSinglePointIntent.class);
     }
 
     @Override
@@ -85,7 +86,7 @@ public class MultiPointToSinglePointIntentCompiler
                 continue;
             }
 
-            Path path = getPath(intent, ingressPoint.deviceId(), intent.egressPoint().deviceId());
+            Path path = getPath(intent, ingressPoint.deviceId(), egressPoint.deviceId());
 
             if (path != null) {
                 hasPaths = true;
@@ -106,6 +107,23 @@ public class MultiPointToSinglePointIntentCompiler
             }
         }
 
+        // Allocate bandwidth on existing paths if a bandwidth constraint is set
+        List<ConnectPoint> ingressCPs =
+                intent.filteredIngressPoints().stream()
+                                              .map(fcp -> fcp.connectPoint())
+                                              .collect(Collectors.toList());
+        ConnectPoint egressCP = intent.filteredEgressPoint().connectPoint();
+
+        List<ConnectPoint> pathCPs =
+                links.values().stream()
+                              .flatMap(l -> Stream.of(l.src(), l.dst()))
+                              .collect(Collectors.toList());
+
+        pathCPs.addAll(ingressCPs);
+        pathCPs.add(egressCP);
+
+        allocateBandwidth(intent, pathCPs);
+
         if (!hasPaths) {
             throw new IntentException("Cannot find any path between ingress and egress points.");
         } else if (!allowMissingPaths && missingSomePaths) {
@@ -122,6 +140,7 @@ public class MultiPointToSinglePointIntentCompiler
                 .filteredEgressPoints(ImmutableSet.of(intent.filteredEgressPoint()))
                 .priority(intent.priority())
                 .constraints(intent.constraints())
+                .resourceGroup(intent.resourceGroup())
                 .build();
 
         return Collections.singletonList(result);

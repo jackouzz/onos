@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-present Open Networking Laboratory
+ * Copyright 2016-present Open Networking Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -57,6 +57,7 @@ import org.onosproject.net.intent.IntentId;
 import org.onosproject.net.intent.IntentService;
 import org.onosproject.net.intent.OpticalCircuitIntent;
 import org.onosproject.net.intent.OpticalConnectivityIntent;
+import org.onosproject.net.intent.PathIntent;
 import org.onosproject.net.optical.OchPort;
 import org.onosproject.net.optical.OduCltPort;
 import org.onosproject.net.intent.IntentSetMultimap;
@@ -71,7 +72,9 @@ import org.slf4j.LoggerFactory;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
 
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Dictionary;
 import java.util.LinkedList;
 import java.util.List;
@@ -184,7 +187,7 @@ public class OpticalCircuitIntentCompiler implements IntentCompiler<OpticalCircu
         // Release of intent resources here is only a temporary solution for handling the
         // case of recompiling due to intent restoration (when intent state is FAILED).
         // TODO: try to release intent resources in IntentManager.
-        resourceService.release(intent.id());
+        resourceService.release(intent.key());
 
         // Check OduClt ports availability
         Resource srcPortResource = Resources.discrete(src.deviceId(), src.port()).resource();
@@ -252,6 +255,7 @@ public class OpticalCircuitIntentCompiler implements IntentCompiler<OpticalCircu
                     .dst(dstCP)
                     .signalType(ochPorts.getLeft().signalType())
                     .bidirectional(intent.isBidirectional())
+                    .resourceGroup(intent.resourceGroup())
                     .build();
 
             if (!supportsMultiplexing) {
@@ -265,7 +269,7 @@ public class OpticalCircuitIntentCompiler implements IntentCompiler<OpticalCircu
             }
         }
 
-        if (resourceService.allocate(intent.id(), required).isEmpty()) {
+        if (resourceService.allocate(intent.key(), required).isEmpty()) {
             throw new OpticalIntentCompilationException("Unable to allocate resources for intent " + intent
                     + ": resources=" + required);
         }
@@ -300,7 +304,7 @@ public class OpticalCircuitIntentCompiler implements IntentCompiler<OpticalCircu
         List<Resource> tributarySlotResources = portsList.stream()
                 .flatMap(cp -> tributarySlots
                         .stream()
-                        .map(ts-> Resources.discrete(cp.deviceId(), cp.port()).resource().child(ts)))
+                        .map(ts -> Resources.discrete(cp.deviceId(), cp.port()).resource().child(ts)))
                 .collect(Collectors.toList());
 
         if (!tributarySlotResources.stream().allMatch(resourceService::isAvailable)) {
@@ -328,7 +332,10 @@ public class OpticalCircuitIntentCompiler implements IntentCompiler<OpticalCircu
             rules.add(connectPorts(higherIntent.getDst(), lowerIntent.getDst(), higherIntent.priority(), slots));
         }
 
-        return new FlowRuleIntent(appId, higherIntent.key(), rules, higherIntent.resources());
+        return new FlowRuleIntent(appId, higherIntent.key(), rules,
+                                  higherIntent.resources(),
+                                  PathIntent.ProtectionType.PRIMARY,
+                                  higherIntent.resourceGroup());
     }
 
     /**
@@ -419,18 +426,13 @@ public class OpticalCircuitIntentCompiler implements IntentCompiler<OpticalCircu
 
     private Pair<OchPort, OchPort> findPorts(ConnectPoint src, ConnectPoint dst, CltSignalType signalType) {
         // According to the OpticalCircuitIntent's signalType find OCH ports with available TributarySlots resources
-        switch (signalType) {
-            case CLT_1GBE:
-            case CLT_10GBE:
-                // First search for OCH ports with OduSignalType of ODU2. If not found - search for those with ODU4
-                return findPorts(src, dst, OduSignalType.ODU2)
-                        .orElse(findPorts(src, dst, OduSignalType.ODU4).orElse(null));
-            case CLT_100GBE:
-                return findPorts(src, dst, OduSignalType.ODU4).orElse(null);
-            case CLT_40GBE:
-            default:
-                return null;
-        }
+        return Arrays.asList(OduSignalType.values()).stream()
+                .sorted(Comparator.comparingLong(OduSignalType::bitRate))
+                .filter(oduSignalType -> oduSignalType.bitRate() >= signalType.bitRate())
+                .map(oduSignalType -> findPorts(src, dst, oduSignalType))
+                .flatMap(Tools::stream)
+                .findFirst()
+                .orElse(null);
     }
 
     private Optional<Pair<OchPort, OchPort>> findPorts(ConnectPoint src, ConnectPoint dst,

@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-present Open Networking Laboratory
+ * Copyright 2014-present Open Networking Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@ package org.onlab.graph;
 
 import com.google.common.collect.ImmutableList;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
@@ -67,7 +66,7 @@ public class DefaultPath<V extends Vertex, E extends Edge<V>> implements Path<V,
 
     @Override
     public List<E> edges() {
-        return Collections.unmodifiableList(edges);
+        return edges;
     }
 
     @Override

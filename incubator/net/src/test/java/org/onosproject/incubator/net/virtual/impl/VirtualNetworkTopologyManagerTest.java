@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-present Open Networking Laboratory
+ * Copyright 2016-present Open Networking Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -42,8 +42,6 @@ import org.onosproject.net.NetTestTools;
 import org.onosproject.net.Path;
 import org.onosproject.net.PortNumber;
 import org.onosproject.net.TestDeviceParams;
-import org.onosproject.net.intent.FakeIntentManager;
-import org.onosproject.net.intent.TestableIntentService;
 import org.onosproject.net.topology.LinkWeigher;
 import org.onosproject.net.topology.LinkWeight;
 import org.onosproject.net.topology.Topology;
@@ -69,7 +67,6 @@ public class VirtualNetworkTopologyManagerTest extends TestDeviceParams {
     private VirtualNetworkManager manager;
     private DistributedVirtualNetworkStore virtualNetworkManagerStore;
     private CoreService coreService;
-    private TestableIntentService intentService = new FakeIntentManager();
     private TestServiceDirectory testDirectory;
 
     @Before
@@ -83,7 +80,6 @@ public class VirtualNetworkTopologyManagerTest extends TestDeviceParams {
         BaseResource.setServiceDirectory(testDirectory);
         manager = new VirtualNetworkManager();
         manager.store = virtualNetworkManagerStore;
-        manager.intentService = intentService;
         manager.coreService = coreService;
         NetTestTools.injectEventDispatcher(manager, new TestEventDispatcher());
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-present Open Networking Laboratory
+ * Copyright 2014-present Open Networking Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -44,6 +44,7 @@ import org.onosproject.cluster.DefaultPartition;
 import org.onosproject.cluster.NodeId;
 import org.onosproject.cluster.Partition;
 import org.onosproject.cluster.PartitionId;
+import org.onosproject.core.Version;
 import org.onosproject.event.AbstractListenerManager;
 import org.slf4j.Logger;
 
@@ -132,6 +133,13 @@ public class ClusterManager
         checkPermission(CLUSTER_READ);
         checkNotNull(nodeId, INSTANCE_ID_NULL);
         return store.getState(nodeId);
+    }
+
+    @Override
+    public Version getVersion(NodeId nodeId) {
+        checkPermission(CLUSTER_READ);
+        checkNotNull(nodeId, INSTANCE_ID_NULL);
+        return store.getVersion(nodeId);
     }
 
     @Override

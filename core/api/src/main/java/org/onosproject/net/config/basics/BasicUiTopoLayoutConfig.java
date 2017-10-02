@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-present Open Networking Laboratory
+ * Copyright 2016-present Open Networking Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -54,14 +54,23 @@ public class BasicUiTopoLayoutConfig extends Config<UiTopoLayoutId> {
     private static final String E_GEOMAP_ALREADY_SET =
             "Can't set sprites when geomap is already set";
 
+    private static final int GEOMAP_MAX_LENGTH = 128;
+    private static final int SPRITES_MAX_LENGTH = 128;
+
     @Override
     public boolean isValid() {
         if (object.has(GEOMAP) && object.has(SPRITES)) {
             throw new InvalidFieldException(GEOMAP, E_GEOMAP_SPRITE);
         }
 
+        // Validate the region and parent
+        region();
+        parent();
+
         return hasOnlyFields(REGION, PARENT, GEOMAP, SPRITES, SCALE,
-                OFFSET_X, OFFSET_Y);
+                OFFSET_X, OFFSET_Y)
+                && isValidLength(GEOMAP, GEOMAP_MAX_LENGTH)
+                && isValidLength(SPRITES, SPRITES_MAX_LENGTH);
     }
 
     @Override

@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-present Open Networking Laboratory
+ * Copyright 2015-present Open Networking Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -120,9 +120,22 @@ public class ResourcesCommand extends AbstractShellCommand {
         } else {
             String resourceName = resource.simpleTypeName();
             if (resource instanceof ContinuousResource) {
-                print("%s%s: %f", Strings.repeat(" ", level),
-                                  resourceName,
-                                  ((ContinuousResource) resource).value());
+                if (availablesOnly) {
+                    // Get the total resource
+                    double total = ((ContinuousResource) resource).value();
+                    // Get allocated resource
+                    double allocated = resourceService.getResourceAllocations(resource.id()).stream()
+                            .mapToDouble(rA -> ((ContinuousResource) rA.resource()).value())
+                            .sum();
+                    // Difference
+                    double difference = total - allocated;
+                    print("%s%s: %f", Strings.repeat(" ", level),
+                          resourceName, difference);
+                } else {
+                    print("%s%s: %f", Strings.repeat(" ", level),
+                          resourceName,
+                          ((ContinuousResource) resource).value());
+                }
                 // Continuous resource is terminal node, stop here
                 return;
             } else {

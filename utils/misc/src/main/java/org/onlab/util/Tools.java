@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-present Open Networking Laboratory
+ * Copyright 2014-present Open Networking Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,10 +15,12 @@
  */
 package org.onlab.util;
 
-import static java.nio.file.Files.delete;
-import static java.nio.file.Files.walkFileTree;
-import static org.onlab.util.GroupedThreadFactory.groupedThreadFactory;
-import static org.slf4j.LoggerFactory.getLogger;
+import com.google.common.base.Charsets;
+import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
+import com.google.common.primitives.UnsignedLongs;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.slf4j.Logger;
 
 import java.io.File;
 import java.io.IOException;
@@ -39,6 +41,7 @@ import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
@@ -50,13 +53,10 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-import org.slf4j.Logger;
-
-import com.google.common.base.Charsets;
-import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
-import com.google.common.primitives.UnsignedLongs;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import static java.nio.file.Files.delete;
+import static java.nio.file.Files.walkFileTree;
+import static org.onlab.util.GroupedThreadFactory.groupedThreadFactory;
+import static org.slf4j.LoggerFactory.getLogger;
 
 /**
  * Miscellaneous utility methods.
@@ -241,6 +241,17 @@ public abstract class Tools {
      */
     public static String toHex(long value, int width) {
         return Strings.padStart(UnsignedLongs.toString(value, 16), width, '0');
+    }
+
+    /**
+     * Returns a string encoding in hex of the given long value with prefix
+     * '0x'.
+     *
+     * @param value long value to encode as hex string
+     * @return hex string
+     */
+    public static String toHexWithPrefix(long value) {
+        return "0x" + Long.toHexString(value);
     }
 
     /**
@@ -639,6 +650,49 @@ public abstract class Tools {
         CompletableFuture<T> future = new CompletableFuture<>();
         future.completeExceptionally(t);
         return future;
+    }
+
+    /**
+     * Returns a future that's completed using the given {@code orderedExecutor} if the future is not blocked or the
+     * given {@code threadPoolExecutor} if the future is blocked.
+     * <p>
+     * This method allows futures to maintain single-thread semantics via the provided {@code orderedExecutor} while
+     * ensuring user code can block without blocking completion of futures. When the returned future or any of its
+     * descendants is blocked on a {@link CompletableFuture#get()} or {@link CompletableFuture#join()} call, completion
+     * of the returned future will be done using the provided {@code threadPoolExecutor}.
+     *
+     * @param future the future to convert into an asynchronous future
+     * @param orderedExecutor the ordered executor with which to attempt to complete the future
+     * @param threadPoolExecutor the backup executor with which to complete blocked futures
+     * @param <T> future value type
+     * @return a new completable future to be completed using the provided {@code executor} once the provided
+     * {@code future} is complete
+     */
+    public static <T> CompletableFuture<T> orderedFuture(
+            CompletableFuture<T> future,
+            Executor orderedExecutor,
+            Executor threadPoolExecutor) {
+        if (future.isDone()) {
+            return future;
+        }
+
+        BlockingAwareFuture<T> newFuture = new BlockingAwareFuture<T>();
+        future.whenComplete((result, error) -> {
+            Runnable completer = () -> {
+                if (future.isCompletedExceptionally()) {
+                    newFuture.completeExceptionally(error);
+                } else {
+                    newFuture.complete(result);
+                }
+            };
+
+            if (newFuture.isBlocked()) {
+                threadPoolExecutor.execute(completer);
+            } else {
+                orderedExecutor.execute(completer);
+            }
+        });
+        return newFuture;
     }
 
     /**

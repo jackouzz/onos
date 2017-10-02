@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  ~ Copyright 2014-present Open Networking Laboratory
+  ~ Copyright 2014-present Open Networking Foundation
   ~
   ~ Licensed under the Apache License, Version 2.0 (the "License");
   ~ you may not use this file except in compliance with the License.
@@ -31,6 +31,10 @@
         <web-resource-collection>
             <web-resource-name>Secured</web-resource-name>
             <url-pattern>/index.html</url-pattern>
+        </web-resource-collection>
+        <web-resource-collection>
+            <web-resource-name>Secured API</web-resource-name>
+            <url-pattern>/rs/applications/*</url-pattern>
         </web-resource-collection>
         <auth-constraint>
             <role-name>admin</role-name>

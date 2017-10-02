@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-present Open Networking Laboratory
+ * Copyright 2014-present Open Networking Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,6 +34,7 @@ import org.onosproject.net.topology.AbstractPathService;
 import org.slf4j.Logger;
 
 import java.util.Set;
+import java.util.stream.Stream;
 import java.util.Map;
 
 
@@ -90,6 +91,12 @@ public class PathManager extends AbstractPathService implements PathService {
         return super.getPaths(src, dst, weigher);
     }
 
+    @Override
+    public Stream<Path> getKShortestPaths(ElementId src, ElementId dst,
+                                          LinkWeigher weigher) {
+        checkPermission(TOPOLOGY_READ);
+        return super.getKShortestPaths(src, dst, weigher);
+    }
 
     @Override
     public Set<DisjointPath> getDisjointPaths(ElementId src, ElementId dst) {

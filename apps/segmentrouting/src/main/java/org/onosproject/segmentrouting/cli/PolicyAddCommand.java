@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-present Open Networking Laboratory
+ * Copyright 2015-present Open Networking Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -99,7 +99,7 @@ public class PolicyAddCommand extends AbstractShellCommand {
         if (dstPort != 0) {
             tpb.setDstPort(dstPort);
         }
-        if (!proto.equals("ip")) {
+        if (!"ip".equals(proto)) {
             tpb.setIpProto(proto);
         }
         if (Policy.Type.valueOf(policyType) == Policy.Type.TUNNEL_FLOW) {

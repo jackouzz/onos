@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-present Open Networking Laboratory
+ * Copyright 2016-present Open Networking Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,18 +16,17 @@
 
 package org.onosproject.store.primitives.impl;
 
-import com.google.common.base.MoreObjects;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Multiset;
 import org.onosproject.store.service.AsyncConsistentMultimap;
+import org.onosproject.store.service.MultimapEventListener;
 import org.onosproject.store.service.Versioned;
 
 import java.util.Collection;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Consumer;
+
+import java.util.concurrent.Executor;
 
 /**
  * {@code AsyncConsistentMultimap} that merely delegates control to
@@ -37,18 +36,14 @@ import java.util.function.Consumer;
  * @param <V> value type
  */
 public class DelegatingAsyncConsistentMultimap<K, V>
-        implements AsyncConsistentMultimap<K, V> {
+        extends DelegatingDistributedPrimitive implements AsyncConsistentMultimap<K, V> {
 
     private final AsyncConsistentMultimap<K, V> delegateMap;
 
     public DelegatingAsyncConsistentMultimap(
             AsyncConsistentMultimap<K, V> delegateMap) {
-        this.delegateMap = Preconditions.checkNotNull(delegateMap);
-    }
-
-    @Override
-    public String name() {
-        return delegateMap.name();
+        super(delegateMap);
+        this.delegateMap = delegateMap;
     }
 
     @Override
@@ -141,44 +136,17 @@ public class DelegatingAsyncConsistentMultimap<K, V>
     }
 
     @Override
+    public CompletableFuture<Void> addListener(MultimapEventListener<K, V> listener, Executor executor) {
+        return delegateMap.addListener(listener, executor);
+    }
+
+    @Override
+    public CompletableFuture<Void> removeListener(MultimapEventListener<K, V> listener) {
+        return delegateMap.removeListener(listener);
+    }
+
+    @Override
     public CompletableFuture<Map<K, Collection<V>>> asMap() {
         return delegateMap.asMap();
-    }
-
-    @Override
-    public void addStatusChangeListener(Consumer<Status> listener) {
-        delegateMap.addStatusChangeListener(listener);
-    }
-
-    @Override
-    public void removeStatusChangeListener(Consumer<Status> listener) {
-        delegateMap.removeStatusChangeListener(listener);
-    }
-
-    @Override
-    public Collection<Consumer<Status>> statusChangeListeners() {
-        return delegateMap.statusChangeListeners();
-    }
-
-    @Override
-    public String toString() {
-        return MoreObjects.toStringHelper(getClass())
-                .add("delegateMap", delegateMap)
-                .toString();
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(delegateMap);
-    }
-
-    @Override
-    public boolean equals(Object other) {
-        if (other instanceof DelegatingAsyncConsistentMultimap) {
-            DelegatingAsyncConsistentMultimap<K, V> that =
-                    (DelegatingAsyncConsistentMultimap) other;
-            return this.delegateMap.equals(that.delegateMap);
-        }
-        return false;
     }
 }

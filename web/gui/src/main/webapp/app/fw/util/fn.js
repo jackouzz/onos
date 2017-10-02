@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-present Open Networking Laboratory
+ * Copyright 2014-present Open Networking Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,7 +31,7 @@
         cca = String.prototype.charCodeAt;
 
     function _parseDebugFlags(dbgstr) {
-        var bits = dbgstr ? dbgstr.split(",") : [];
+        var bits = dbgstr ? dbgstr.split(',') : [];
         bits.forEach(function (key) {
             debugFlags[key] = true;
         });
@@ -114,7 +114,7 @@
             ow = offW || 0;
         return {
             height: $window.innerHeight - oh,
-            width: $window.innerWidth - ow
+            width: $window.innerWidth - ow,
         };
     }
 
@@ -129,10 +129,10 @@
     function isChrome() {
         var isChromium = $window.chrome,
             vendorName = $window.navigator.vendor,
-            isOpera = $window.navigator.userAgent.indexOf("OPR") > -1;
+            isOpera = $window.navigator.userAgent.indexOf('OPR') > -1;
         return (isChromium !== null &&
         isChromium !== undefined &&
-        vendorName === "Google Inc." &&
+        vendorName === 'Google Inc.' &&
         isOpera == false);
     }
 
@@ -247,7 +247,7 @@
         return {
             o: w,
             d: o.join(''),
-            e: fcc.apply(o, o)
+            e: fcc.apply(o, o),
         };
     }
 
@@ -263,12 +263,6 @@
 
     function endsWith(str, suffix) {
         return str.indexOf(suffix, str.length - suffix.length) !== -1;
-    }
-
-    function parseBitRate(str) {
-        return Number(str.replace(/,/, '')
-                        .replace(/\s+.bps/i, '')
-                        .replace(/\.\d*/, ''));
     }
 
     // return true if the given debug flag was specified in the query params
@@ -307,7 +301,7 @@
                 np = c.p[q];
                 x = 1;
             }
-            return { p: np, s: c.s }
+            return { p: np, s: c.s };
         }
 
         function probe(c) {
@@ -315,12 +309,12 @@
                 k = Object.keys(c.p).length,
                 np = c.p[q];
 
-            t.push({ q:q, k:k, p:c.p });
+            t.push({ q: q, k: k, p: c.p });
             if (!np) {
                 t = [];
                 return { s: [] };
             }
-            return { p: np, s: c.s }
+            return { p: np, s: c.s };
         }
 
         function insert() {
@@ -388,7 +382,7 @@
 
     var hasOwn = {}.hasOwnProperty;
 
-    function classNames () {
+    function classNames() {
         var classes = [];
 
         for (var i = 0; i < arguments.length; i++) {
@@ -436,6 +430,63 @@
         return child;
     }
 
+    // -----------------------------------------------------------------
+    // The next section deals with sanitizing external strings destined
+    // to be loaded via a .html() function call.
+
+    var matcher = /<\/?([a-zA-Z0-9]+)*(.*?)\/?>/igm,
+        whitelist = ['b', 'i', 'p', 'em', 'strong', 'br'],
+        evillist = ['script', 'style', 'iframe'];
+
+    // Returns true if the tag is in the evil list, (and is not an end-tag)
+    function inEvilList(tag) {
+        return (evillist.indexOf(tag.name) !== -1 && tag.full.indexOf('/') === -1);
+    }
+
+    function analyze(html) {
+        html = String(html) || '';
+
+        var matches = [],
+            match;
+
+        // extract all tags
+        while ((match = matcher.exec(html)) !== null) {
+            matches.push({
+                full: match[0],
+                name: match[1],
+                // NOTE: ignoring attributes {match[2].split(' ')} for now
+            });
+        }
+
+        return matches;
+    }
+
+    function sanitize(html) {
+        html = String(html) || '';
+
+        var matches = analyze(html);
+
+        // completely obliterate evil tags and their contents...
+        evillist.forEach(function (tag) {
+            var re = new RegExp('<' + tag + '(.*?)>(.*?[\r\n])*?(.*?)(.*?[\r\n])*?<\/' + tag + '>', 'gim');
+            html = html.replace(re, '');
+        });
+
+        // filter out all but white-listed tags and end-tags
+        matches.forEach(function (tag) {
+            if (whitelist.indexOf(tag.name) === -1) {
+                html = html.replace(tag.full, '');
+                if (inEvilList(tag)) {
+                    $log.warn('Unsanitary HTML input -- ' + tag.full + ' detected!');
+                }
+            }
+        });
+
+        // TODO: consider encoding HTML entities, e.g. '&' -> '&amp;'
+
+        return html;
+    }
+
 
     angular.module('onosUtil')
         .factory('FnService',
@@ -471,12 +522,12 @@
                 noPx: noPx,
                 noPxStyle: noPxStyle,
                 endsWith: endsWith,
-                parseBitRate: parseBitRate,
                 addToTrie: addToTrie,
                 removeFromTrie: removeFromTrie,
                 trieLookup: trieLookup,
                 classNames: classNames,
-                extend: extend
+                extend: extend,
+                sanitize: sanitize,
             };
     }]);
 

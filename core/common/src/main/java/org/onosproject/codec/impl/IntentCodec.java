@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-present Open Networking Laboratory
+ * Copyright 2015-present Open Networking Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,13 +18,15 @@ package org.onosproject.codec.impl;
 import org.onosproject.codec.CodecContext;
 import org.onosproject.codec.JsonCodec;
 import org.onosproject.core.CoreService;
-import org.onosproject.net.NetworkResource;
+import org.onosproject.net.Link;
+import org.onosproject.net.ResourceGroup;
 import org.onosproject.net.intent.PointToPointIntent;
 import org.onosproject.net.intent.Intent;
 import org.onosproject.net.intent.IntentService;
 import org.onosproject.net.intent.IntentState;
 import org.onosproject.net.intent.HostToHostIntent;
 import org.onosproject.net.intent.SinglePointToMultiPointIntent;
+import org.onosproject.net.intent.MultiPointToSinglePointIntent;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -45,6 +47,7 @@ public final class IntentCodec extends JsonCodec<Intent> {
     protected static final String STATE = "state";
     protected static final String PRIORITY = "priority";
     protected static final String RESOURCES = "resources";
+    protected static final String RESOURCE_GROUP = "resourceGroup";
     protected static final String MISSING_MEMBER_MESSAGE =
             " member is required in Intent";
     private static final String E_APP_ID_NOT_FOUND =
@@ -59,12 +62,20 @@ public final class IntentCodec extends JsonCodec<Intent> {
                 .put(ID, intent.id().toString())
                 .put(APP_ID, UrlEscapers.urlPathSegmentEscaper()
                         .escape(intent.appId().name()));
+        if (intent.resourceGroup() != null) {
+            result.put(RESOURCE_GROUP, intent.resourceGroup().toString());
+        }
 
         final ArrayNode jsonResources = result.putArray(RESOURCES);
 
-        for (final NetworkResource resource : intent.resources()) {
-            jsonResources.add(resource.toString());
-        }
+        intent.resources()
+                .forEach(resource -> {
+                    if (resource instanceof Link) {
+                        jsonResources.add(context.codec(Link.class).encode((Link) resource, context));
+                    } else {
+                        jsonResources.add(resource.toString());
+                    }
+                });
 
         IntentService service = context.getService(IntentService.class);
         IntentState state = service.getIntentState(intent.key());
@@ -88,6 +99,8 @@ public final class IntentCodec extends JsonCodec<Intent> {
             return context.codec(HostToHostIntent.class).decode(json, context);
         } else if (type.equals(SinglePointToMultiPointIntent.class.getSimpleName())) {
             return context.codec(SinglePointToMultiPointIntent.class).decode(json, context);
+        } else if (type.equals(MultiPointToSinglePointIntent.class.getSimpleName())) {
+            return context.codec(MultiPointToSinglePointIntent.class).decode(json, context);
         }
 
         throw new IllegalArgumentException("Intent type "
@@ -112,6 +125,14 @@ public final class IntentCodec extends JsonCodec<Intent> {
         JsonNode priorityJson = json.get(IntentCodec.PRIORITY);
         if (priorityJson != null) {
             builder.priority(priorityJson.asInt());
+        }
+
+        JsonNode resourceGroup = json.get(IntentCodec.RESOURCE_GROUP);
+        if (resourceGroup != null) {
+            String resourceGroupId = resourceGroup.asText();
+            builder.resourceGroup(ResourceGroup.of(
+                    Long.parseUnsignedLong(resourceGroupId.substring(2), 16)
+            ));
         }
     }
 }

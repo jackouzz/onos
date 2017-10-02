@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-present Open Networking Laboratory
+ * Copyright 2016-present Open Networking Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,8 +15,11 @@
  */
 package org.onosproject.store.primitives;
 
+import java.util.Set;
+
 import org.onosproject.store.service.AsyncAtomicCounter;
 import org.onosproject.store.service.AsyncAtomicCounterMap;
+import org.onosproject.store.service.AsyncAtomicIdGenerator;
 import org.onosproject.store.service.AsyncAtomicValue;
 import org.onosproject.store.service.AsyncConsistentMap;
 import org.onosproject.store.service.AsyncConsistentMultimap;
@@ -24,10 +27,9 @@ import org.onosproject.store.service.AsyncConsistentTreeMap;
 import org.onosproject.store.service.AsyncDistributedSet;
 import org.onosproject.store.service.AsyncDocumentTree;
 import org.onosproject.store.service.AsyncLeaderElector;
+import org.onosproject.store.service.Ordering;
 import org.onosproject.store.service.Serializer;
 import org.onosproject.store.service.WorkQueue;
-
-import java.util.Set;
 
 /**
  * Interface for entity that can create instances of different distributed primitives.
@@ -53,8 +55,7 @@ public interface DistributedPrimitiveCreator {
      * @param <V> value type
      * @return distributedTreeMap
      */
-    <V> AsyncConsistentTreeMap<V> newAsyncConsistentTreeMap(
-            String name, Serializer serializer);
+    <V> AsyncConsistentTreeMap<V> newAsyncConsistentTreeMap(String name, Serializer serializer);
 
     /**
      * Creates a new set backed {@code AsyncConsistentMultimap}.
@@ -65,8 +66,7 @@ public interface DistributedPrimitiveCreator {
      * @param <V> value type
      * @return set backed distributedMultimap
      */
-    <K, V> AsyncConsistentMultimap<K, V> newAsyncConsistentSetMultimap(
-            String name, Serializer serializer);
+    <K, V> AsyncConsistentMultimap<K, V> newAsyncConsistentSetMultimap(String name, Serializer serializer);
 
     /**
      * Creates a new {@code AsyncAtomicCounterMap}.
@@ -76,8 +76,7 @@ public interface DistributedPrimitiveCreator {
      * @param <K> key type
      * @return atomic counter map
      */
-    <K> AsyncAtomicCounterMap<K> newAsyncAtomicCounterMap(
-        String name, Serializer serializer);
+    <K> AsyncAtomicCounterMap<K> newAsyncAtomicCounterMap(String name, Serializer serializer);
 
     /**
      * Creates a new {@code AsyncAtomicCounter}.
@@ -86,6 +85,14 @@ public interface DistributedPrimitiveCreator {
      * @return counter
      */
     AsyncAtomicCounter newAsyncCounter(String name);
+
+    /**
+     * Creates a new {@code AsyncAtomixIdGenerator}.
+     *
+     * @param name ID generator name
+     * @return ID generator
+     */
+    AsyncAtomicIdGenerator newAsyncIdGenerator(String name);
 
     /**
      * Creates a new {@code AsyncAtomicValue}.
@@ -133,7 +140,20 @@ public interface DistributedPrimitiveCreator {
      * @param serializer serializer
      * @return document tree
      */
-    <V> AsyncDocumentTree<V> newAsyncDocumentTree(String name, Serializer serializer);
+    default <V> AsyncDocumentTree<V> newAsyncDocumentTree(String name, Serializer serializer) {
+        return newAsyncDocumentTree(name, serializer, Ordering.NATURAL);
+    }
+
+    /**
+     * Creates a new {@code AsyncDocumentTree}.
+     *
+     * @param <V> document tree node value type
+     * @param name tree name
+     * @param serializer serializer
+     * @param ordering tree node ordering
+     * @return document tree
+     */
+    <V> AsyncDocumentTree<V> newAsyncDocumentTree(String name, Serializer serializer, Ordering ordering);
 
     /**
      * Returns the names of all created {@code AsyncConsistentMap} instances.

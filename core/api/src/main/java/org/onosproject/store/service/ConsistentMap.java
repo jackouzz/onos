@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-present Open Networking Laboratory
+ * Copyright 2015-present Open Networking Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -75,6 +75,20 @@ public interface ConsistentMap<K, V> extends DistributedPrimitive {
      * this map contains no mapping for the key
      */
     Versioned<V> get(K key);
+
+    /**
+     * Returns the value (and version) to which the specified key is mapped, or the provided
+     * default value if this map contains no mapping for the key.
+     * <p>
+     * Note: a non-null {@link Versioned} value will be returned even if the {@code defaultValue}
+     * is {@code null}.
+     *
+     * @param key the key whose associated value (and version) is to be returned
+     * @param defaultValue the default value to return if the key is not set
+     * @return the value (and version) to which the specified key is mapped, or null if
+     * this map contains no mapping for the key
+     */
+    Versioned<V> getOrDefault(K key, V defaultValue);
 
     /**
      * If the specified key is not already associated with a value (or is mapped to null),

@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-present Open Networking Laboratory
+ * Copyright 2016-present Open Networking Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,6 @@
 
 package org.onosproject.store.primitives.impl;
 
-import static org.slf4j.LoggerFactory.getLogger;
-
 import java.io.File;
 import java.util.List;
 import java.util.Map;
@@ -26,6 +24,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Maps;
 import org.apache.felix.scr.annotations.Activate;
 import org.apache.felix.scr.annotations.Component;
 import org.apache.felix.scr.annotations.Deactivate;
@@ -43,7 +43,7 @@ import org.onosproject.cluster.NodeId;
 import org.onosproject.cluster.PartitionDiff;
 import org.onosproject.cluster.PartitionId;
 import org.onosproject.event.AbstractListenerManager;
-import org.onosproject.store.cluster.messaging.MessagingService;
+import org.onosproject.store.cluster.messaging.ClusterCommunicationService;
 import org.onosproject.store.primitives.DistributedPrimitiveCreator;
 import org.onosproject.store.primitives.PartitionAdminService;
 import org.onosproject.store.primitives.PartitionEvent;
@@ -53,11 +53,9 @@ import org.onosproject.store.service.PartitionClientInfo;
 import org.onosproject.store.service.PartitionInfo;
 import org.slf4j.Logger;
 
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Maps;
-
 import static org.onosproject.security.AppGuard.checkPermission;
 import static org.onosproject.security.AppPermission.Type.PARTITION_READ;
+import static org.slf4j.LoggerFactory.getLogger;
 
 /**
  * Implementation of {@code PartitionService} and {@code PartitionAdminService}.
@@ -70,7 +68,7 @@ public class PartitionManager extends AbstractListenerManager<PartitionEvent, Pa
     private final Logger log = getLogger(getClass());
 
     @Reference(cardinality = ReferenceCardinality.MANDATORY_UNARY)
-    protected MessagingService messagingService;
+    protected ClusterCommunicationService clusterCommunicator;
 
     @Reference(cardinality = ReferenceCardinality.MANDATORY_UNARY)
     protected ClusterMetadataService metadataService;
@@ -90,9 +88,8 @@ public class PartitionManager extends AbstractListenerManager<PartitionEvent, Pa
         currentClusterMetadata.get()
                        .getPartitions()
                        .forEach(partition -> partitions.put(partition.getId(), new StoragePartition(partition,
-                               messagingService,
+                               clusterCommunicator,
                                clusterService,
-                               CatalystSerializers.getSerializer(),
                                new File(System.getProperty("karaf.data") + "/partitions/" + partition.getId()))));
 
         CompletableFuture<Void> openFuture = CompletableFuture.allOf(partitions.values()

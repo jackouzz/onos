@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-present Open Networking Laboratory
+ * Copyright 2014-present Open Networking Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,6 +32,8 @@ import org.onosproject.net.DeviceId;
 import org.onosproject.net.device.DeviceEvent;
 import org.onosproject.net.device.DeviceListener;
 import org.onosproject.net.device.DeviceService;
+import org.onosproject.net.driver.Driver;
+import org.onosproject.net.driver.DriverService;
 import org.onosproject.net.flow.DefaultTrafficTreatment;
 import org.onosproject.net.flow.TrafficSelector;
 import org.onosproject.net.flow.TrafficTreatment;
@@ -87,6 +89,7 @@ public class PacketManager
     private static final String ERROR_NULL_SELECTOR = "Selector cannot be null";
     private static final String ERROR_NULL_APP_ID = "Application ID cannot be null";
     private static final String ERROR_NULL_DEVICE_ID = "Device ID cannot be null";
+    private static final String SUPPORT_PACKET_REQUEST_PROPERTY = "supportPacketRequest";
 
     private final PacketStoreDelegate delegate = new InternalStoreDelegate();
 
@@ -98,6 +101,9 @@ public class PacketManager
 
     @Reference(cardinality = ReferenceCardinality.MANDATORY_UNARY)
     protected DeviceService deviceService;
+
+    @Reference(cardinality = ReferenceCardinality.MANDATORY_UNARY)
+    protected DriverService driverService;
 
     @Reference(cardinality = ReferenceCardinality.MANDATORY_UNARY)
     protected PacketStore store;
@@ -264,7 +270,11 @@ public class PacketManager
     private void pushToAllDevices(PacketRequest request) {
         log.debug("Pushing packet request {} to all devices", request);
         for (Device device : deviceService.getDevices()) {
-            pushRule(device, request);
+            Driver driver = driverService.getDriver(device.id());
+            if (driver != null &&
+                    Boolean.parseBoolean(driver.getProperty(SUPPORT_PACKET_REQUEST_PROPERTY))) {
+                pushRule(device, request);
+            }
         }
     }
 
@@ -401,7 +411,11 @@ public class PacketManager
             DeviceId deviceid = request.deviceId().orElse(null);
 
             if (deviceid != null) {
-                pushRule(deviceService.getDevice(deviceid), request);
+                Device device = deviceService.getDevice(deviceid);
+
+                if (device != null) {
+                    pushRule(deviceService.getDevice(deviceid), request);
+                }
             } else {
                 pushToAllDevices(request);
             }
@@ -412,7 +426,11 @@ public class PacketManager
             DeviceId deviceid = request.deviceId().orElse(null);
 
             if (deviceid != null) {
-                removeRule(deviceService.getDevice(deviceid), request);
+                Device device = deviceService.getDevice(deviceid);
+
+                if (device != null) {
+                    removeRule(deviceService.getDevice(deviceid), request);
+                }
             } else {
                 removeFromAllDevices(request);
             }
@@ -428,12 +446,20 @@ public class PacketManager
             eventHandlingExecutor.execute(() -> {
                 try {
                     Device device = event.subject();
+                    Driver driver = driverService.getDriver(device.id());
+                    if (driver == null) {
+                        return;
+                    }
+                    if (!Boolean.parseBoolean(driver.getProperty(SUPPORT_PACKET_REQUEST_PROPERTY))) {
+                        return;
+                    }
+                    if (!deviceService.isAvailable(event.subject().id())) {
+                        return;
+                    }
                     switch (event.type()) {
                         case DEVICE_ADDED:
                         case DEVICE_AVAILABILITY_CHANGED:
-                            if (deviceService.isAvailable(event.subject().id())) {
-                                pushRulesToDevice(device);
-                            }
+                            pushRulesToDevice(device);
                             break;
                         default:
                             break;

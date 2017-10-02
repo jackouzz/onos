@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-present Open Networking Laboratory
+ * Copyright 2015-present Open Networking Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -223,13 +223,19 @@ public abstract class IGMP extends BasePacket {
         return (data, offset, length) -> {
             checkInput(data, offset, length, IGMPv2.HEADER_LENGTH);
 
-            // we will assume that this is IGMPv2 if the length is 8
-            boolean isV2 = length == IGMPv2.HEADER_LENGTH;
+            final ByteBuffer bb = ByteBuffer.wrap(data, offset, length);
+            byte igmpType = bb.get();
+            boolean isV2;
+            if (igmpType == TYPE_IGMPV2_MEMBERSHIP_REPORT  || igmpType == TYPE_IGMPV2_LEAVE_GROUP ||
+                    length == IGMPv2.HEADER_LENGTH) {
+                isV2 = true;
+            } else {
+                isV2 = false;
+            }
 
             IGMP igmp = isV2 ? new IGMPv2() : new IGMPv3();
 
-            final ByteBuffer bb = ByteBuffer.wrap(data, offset, length);
-            igmp.igmpType = bb.get();
+            igmp.igmpType = igmpType;
             igmp.resField = bb.get();
             igmp.checksum = bb.getShort();
 

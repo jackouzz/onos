@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-present Open Networking Laboratory
+ * Copyright 2015-present Open Networking Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,9 @@
 package org.onlab.packet;
 
 import java.nio.ByteBuffer;
-import java.util.HashMap;
 import java.util.Map;
+
+import com.google.common.collect.ImmutableMap;
 
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static org.onlab.packet.PacketUtils.checkInput;
@@ -30,13 +31,12 @@ public class MPLS extends BasePacket {
 
     public static final byte PROTOCOL_IPV4 = 0x1;
     public static final byte PROTOCOL_MPLS = 0x6;
-    static Map<Byte, Deserializer<? extends IPacket>> protocolDeserializerMap
-            = new HashMap<>();
-
-    static {
-        protocolDeserializerMap.put(PROTOCOL_IPV4, IPv4.deserializer());
-        protocolDeserializerMap.put(PROTOCOL_MPLS, MPLS.deserializer());
-    }
+    // mutable for Testing
+    static Map<Byte, Deserializer<? extends IPacket>> protocolDeserializerMap =
+            ImmutableMap.<Byte, Deserializer<? extends IPacket>>builder()
+                .put(PROTOCOL_IPV4, IPv4.deserializer())
+                .put(PROTOCOL_MPLS, MPLS.deserializer())
+                .build();
 
     protected int label; //20bits
     protected byte bos; //1bit

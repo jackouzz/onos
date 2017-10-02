@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-present Open Networking Laboratory
+ * Copyright 2015-present Open Networking Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,6 +31,8 @@ import org.onosproject.cluster.ClusterStoreDelegate;
 import org.onosproject.cluster.ControllerNode;
 import org.onosproject.cluster.DefaultControllerNode;
 import org.onosproject.cluster.NodeId;
+import org.onosproject.core.Version;
+import org.onosproject.core.VersionService;
 import org.onosproject.event.EventDeliveryService;
 import org.onosproject.event.ListenerRegistry;
 import org.onosproject.net.intent.WorkPartitionEvent;
@@ -66,6 +68,9 @@ public class SimpleClusterStore
 
     @Reference(cardinality = ReferenceCardinality.MANDATORY_UNARY)
     protected EventDeliveryService eventDispatcher;
+
+    @Reference(cardinality = ReferenceCardinality.MANDATORY_UNARY)
+    protected VersionService versionService;
 
     private ListenerRegistry<WorkPartitionEvent, WorkPartitionEventListener> listenerRegistry;
     private boolean started = false;
@@ -105,6 +110,11 @@ public class SimpleClusterStore
     @Override
     public ControllerNode.State getState(NodeId nodeId) {
         return ControllerNode.State.ACTIVE;
+    }
+
+    @Override
+    public Version getVersion(NodeId nodeId) {
+        return instance.id().equals(nodeId) ? versionService.version() : null;
     }
 
     @Override

@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-present Open Networking Laboratory
+ * Copyright 2016-present Open Networking Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@ import org.onosproject.store.service.Serializer;
 public abstract class DistributedPrimitiveBuilder<B extends DistributedPrimitiveBuilder<B, T>,
                                                   T extends DistributedPrimitive> {
 
-    private DistributedPrimitive.Type type;
+    private final DistributedPrimitive.Type type;
     private String name;
     private ApplicationId applicationId;
     private Serializer serializer;

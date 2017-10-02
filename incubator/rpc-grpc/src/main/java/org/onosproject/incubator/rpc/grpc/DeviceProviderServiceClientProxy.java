@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-present Open Networking Laboratory
+ * Copyright 2015-present Open Networking Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@ package org.onosproject.incubator.rpc.grpc;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static java.util.stream.Collectors.toList;
-import static org.onosproject.incubator.protobuf.net.ProtobufUtils.translate;
+import static org.onosproject.incubator.protobuf.models.ProtobufUtils.translate;
 import static org.onosproject.net.DeviceId.deviceId;
 
 import java.util.Collection;
@@ -31,7 +31,9 @@ import org.onosproject.grpc.net.device.DeviceService.DeviceProviderServiceMsg;
 import org.onosproject.grpc.net.device.DeviceService.IsReachableRequest;
 import org.onosproject.grpc.net.device.DeviceService.RoleChanged;
 import org.onosproject.grpc.net.device.DeviceService.TriggerProbe;
-import org.onosproject.incubator.protobuf.net.ProtobufUtils;
+import org.onosproject.grpc.net.device.models.PortDescriptionProtoOuterClass.PortDescriptionProto;
+import org.onosproject.grpc.net.device.models.PortStatisticsProtoOuterClass.PortStatisticsProto;
+import org.onosproject.incubator.protobuf.models.ProtobufUtils;
 import org.onosproject.net.DeviceId;
 import org.onosproject.net.MastershipRole;
 import org.onosproject.net.device.DeviceDescription;
@@ -115,7 +117,7 @@ final class DeviceProviderServiceClientProxy
         checkValidity();
 
         DeviceProviderServiceMsg.Builder builder = DeviceProviderServiceMsg.newBuilder();
-        List<org.onosproject.grpc.net.Port.PortDescription> portDescs =
+        List<PortDescriptionProto> portDescs =
                 portDescriptions.stream()
                     .map(ProtobufUtils::translate)
                     .collect(toList());
@@ -126,6 +128,11 @@ final class DeviceProviderServiceClientProxy
                                .build());
 
         devProvService.onNext(builder.build());
+    }
+
+    @Override
+    public void deletePort(DeviceId deviceId, PortDescription portDescription) {
+
     }
 
     @Override
@@ -163,7 +170,7 @@ final class DeviceProviderServiceClientProxy
         checkValidity();
 
         DeviceProviderServiceMsg.Builder builder = DeviceProviderServiceMsg.newBuilder();
-        List<org.onosproject.grpc.net.Port.PortStatistics> portStats =
+        List<PortStatisticsProto> portStats =
                 portStatistics.stream()
                     .map(ProtobufUtils::translate)
                     .collect(toList());

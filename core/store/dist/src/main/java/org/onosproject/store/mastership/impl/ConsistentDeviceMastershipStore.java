@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-present Open Networking Laboratory
+ * Copyright 2015-present Open Networking Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -59,7 +59,7 @@ import org.onosproject.store.AbstractStore;
 import org.onosproject.store.cluster.messaging.ClusterCommunicationService;
 import org.onosproject.store.cluster.messaging.MessageSubject;
 import org.onosproject.store.serializers.KryoNamespaces;
-import org.onosproject.store.serializers.StoreSerializer;
+import org.onosproject.store.service.Serializer;
 import org.slf4j.Logger;
 
 import com.google.common.base.Objects;
@@ -108,7 +108,7 @@ public class ConsistentDeviceMastershipStore
     private static final String DEVICE_ID_NULL = "Device ID cannot be null";
     private static final int WAIT_BEFORE_MASTERSHIP_HANDOFF_MILLIS = 3000;
 
-    public static final StoreSerializer SERIALIZER = StoreSerializer.using(
+    public static final Serializer SERIALIZER = Serializer.using(
             KryoNamespace.newBuilder()
                     .register(KryoNamespaces.API)
                     .register(MastershipRole.class)

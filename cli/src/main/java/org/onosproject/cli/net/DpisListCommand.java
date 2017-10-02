@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-present Open Networking Laboratory
+ * Copyright 2016-present Open Networking Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -214,7 +214,7 @@ public class DpisListCommand extends AbstractShellCommand {
 
     private void printDpiStatisticsJson(int number, DpiStatistics ds) {
         String index = number < 0 ? String.format("  -  ") : String.format("%5d", number);
-        if (ds.receivedTime().equals("")) {
+        if ("".equals(ds.receivedTime())) {
             print("ReceivedTime is null, No valid DPI Statistics!");
             return;
         }
@@ -233,7 +233,7 @@ public class DpisListCommand extends AbstractShellCommand {
             return;
         }
 
-        if (ds.receivedTime().equals("")) {
+        if ("".equals(ds.receivedTime())) {
             print("ReceivedTime is null, No valid DPI Statistics!");
             return;
         }
@@ -359,7 +359,7 @@ public class DpisListCommand extends AbstractShellCommand {
         sb.append(String.format(" [%s pkts/", fsi.packets()));
         sb.append(String.format("%s bytes]", fsi.bytes()));
         String serverHostName = fsi.hostServerName();
-        if (serverHostName != null && !serverHostName.equals("")) {
+        if (serverHostName != null && !"".equals(serverHostName)) {
             sb.append(String.format("[Host: %s]", serverHostName));
         }
 

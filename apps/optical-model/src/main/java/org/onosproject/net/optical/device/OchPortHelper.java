@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-present Open Networking Laboratory
+ * Copyright 2016-present Open Networking Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -99,7 +99,7 @@ public final class OchPortHelper {
         builder.set(SIGNAL_TYPE, signalType.toString());
 
         DefaultAnnotations annotations = builder.build();
-        long portSpeed = 0; // FIXME assign appropriate value
+        long portSpeed = signalType.bitRate();
         return new DefaultPortDescription(number, isEnabled, Port.Type.OCH, portSpeed, annotations);
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-present Open Networking Laboratory
+ * Copyright 2016-present Open Networking Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -41,6 +41,7 @@ import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.Response.Status;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -59,8 +60,7 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class HttpSBControllerImpl implements HttpSBController {
 
-    private static final Logger log =
-            LoggerFactory.getLogger(HttpSBControllerImpl.class);
+    private static final Logger log = LoggerFactory.getLogger(HttpSBControllerImpl.class);
     private static final String XML = "xml";
     private static final String JSON = "json";
     protected static final String DOUBLESLASH = "//";
@@ -95,8 +95,7 @@ public class HttpSBControllerImpl implements HttpSBController {
 
     @Override
     public RestSBDevice getDevice(IpAddress ip, int port) {
-        return deviceMap.values().stream().filter(v -> v.ip().equals(ip)
-                && v.port() == port).findFirst().get();
+        return deviceMap.values().stream().filter(v -> v.ip().equals(ip) && v.port() == port).findFirst().get();
     }
 
     @Override
@@ -124,80 +123,106 @@ public class HttpSBControllerImpl implements HttpSBController {
 
     @Override
     public boolean post(DeviceId device, String request, InputStream payload, String mediaType) {
-        Response response = getResponse(device, request, payload, mediaType);
-        return checkReply(response);
+        return checkStatusCode(post(device, request, payload, typeOfMediaType(mediaType)));
     }
 
     @Override
-    public <T> T post(DeviceId device, String request, InputStream payload,
-                      String mediaType, Class<T> responseClass) {
+    public int post(DeviceId device, String request, InputStream payload, MediaType mediaType) {
         Response response = getResponse(device, request, payload, mediaType);
-        if (response.hasEntity()) {
-            return response.readEntity(responseClass);
+        if (response == null) {
+            return Status.NO_CONTENT.getStatusCode();
+        }
+        return response.getStatus();
+    }
+
+    @Override
+    public <T> T post(DeviceId device, String request, InputStream payload, String mediaType, Class<T> responseClass) {
+        return post(device, request, payload, typeOfMediaType(mediaType), responseClass);
+    }
+
+    @Override
+    public <T> T post(DeviceId device, String request, InputStream payload, MediaType mediaType,
+                      Class<T> responseClass) {
+        Response response = getResponse(device, request, payload, mediaType);
+        if (response != null && response.hasEntity()) {
+            // Do not read the entity if the responseClass is of type Response. This would allow the
+            // caller to receive the Response directly and try to read its appropriate entity locally.
+            return responseClass == Response.class ? (T) response : response.readEntity(responseClass);
         }
         log.error("Response from device {} for request {} contains no entity", device, request);
         return null;
     }
 
-    private Response getResponse(DeviceId device, String request, InputStream payload, String mediaType) {
-        String type = typeOfMediaType(mediaType);
+    private Response getResponse(DeviceId device, String request, InputStream payload, MediaType mediaType) {
 
         WebTarget wt = getWebTarget(device, request);
 
         Response response = null;
         if (payload != null) {
             try {
-                response = wt.request(type)
-                        .post(Entity.entity(IOUtils.toString(payload, StandardCharsets.UTF_8), type));
+                response = wt.request(mediaType)
+                        .post(Entity.entity(IOUtils.toString(payload, StandardCharsets.UTF_8), mediaType));
             } catch (IOException e) {
-                log.error("Cannot do POST {} request on device {} because can't read payload",
-                          request, device);
+                log.error("Cannot do POST {} request on device {} because can't read payload", request, device);
             }
         } else {
-            response = wt.request(type).post(Entity.entity(null, type));
+            response = wt.request(mediaType).post(Entity.entity(null, mediaType));
         }
         return response;
     }
 
     @Override
     public boolean put(DeviceId device, String request, InputStream payload, String mediaType) {
-        String type = typeOfMediaType(mediaType);
+        return checkStatusCode(put(device, request, payload, typeOfMediaType(mediaType)));
+    }
+
+    @Override
+    public int put(DeviceId device, String request, InputStream payload, MediaType mediaType) {
 
         WebTarget wt = getWebTarget(device, request);
 
         Response response = null;
         if (payload != null) {
             try {
-                response = wt.request(type)
-                        .put(Entity.entity(IOUtils.toString(payload, StandardCharsets.UTF_8), type));
+                response = wt.request(mediaType).put(Entity.entity(IOUtils.
+                        toString(payload, StandardCharsets.UTF_8), mediaType));
             } catch (IOException e) {
-                log.error("Cannot do PUT {} request on device {} because can't read payload",
-                          request, device);
+                log.error("Cannot do PUT {} request on device {} because can't read payload", request, device);
             }
         } else {
-            response = wt.request(type).put(Entity.entity(null, type));
+            response = wt.request(mediaType).put(Entity.entity(null, mediaType));
         }
-        return checkReply(response);
+
+        if (response == null) {
+            return Status.NO_CONTENT.getStatusCode();
+        }
+        return response.getStatus();
     }
 
     @Override
     public InputStream get(DeviceId device, String request, String mediaType) {
-        String type = typeOfMediaType(mediaType);
+        return get(device, request, typeOfMediaType(mediaType));
+    }
 
+    @Override
+    public InputStream get(DeviceId device, String request, MediaType mediaType) {
         WebTarget wt = getWebTarget(device, request);
 
-        Response s = wt.request(type).get();
+        Response s = wt.request(mediaType).get();
 
         if (checkReply(s)) {
-            return new ByteArrayInputStream(s.readEntity((String.class))
-                    .getBytes(StandardCharsets.UTF_8));
+            return new ByteArrayInputStream(s.readEntity((String.class)).getBytes(StandardCharsets.UTF_8));
         }
         return null;
     }
 
     @Override
     public boolean patch(DeviceId device, String request, InputStream payload, String mediaType) {
-        String type = typeOfMediaType(mediaType);
+        return checkStatusCode(patch(device, request, payload, typeOfMediaType(mediaType)));
+    }
+
+    @Override
+    public int patch(DeviceId device, String request, InputStream payload, MediaType mediaType) {
 
         try {
             log.debug("Url request {} ", getUrlString(device, request));
@@ -210,7 +235,7 @@ public class HttpSBControllerImpl implements HttpSBController {
             }
             if (payload != null) {
                 StringEntity input = new StringEntity(IOUtils.toString(payload, StandardCharsets.UTF_8));
-                input.setContentType(type);
+                input.setContentType(mediaType.toString());
                 httprequest.setEntity(input);
             }
             CloseableHttpClient httpClient;
@@ -219,45 +244,43 @@ public class HttpSBControllerImpl implements HttpSBController {
             } else {
                 httpClient = HttpClients.createDefault();
             }
-            int responseStatusCode = httpClient
-                    .execute(httprequest)
-                    .getStatusLine()
-                    .getStatusCode();
-            return checkStatusCode(responseStatusCode);
+            return httpClient.execute(httprequest).getStatusLine().getStatusCode();
         } catch (IOException | NoSuchAlgorithmException | KeyManagementException | KeyStoreException e) {
-            log.error("Cannot do PATCH {} request on device {}",
-                      request, device, e);
+            log.error("Cannot do PATCH {} request on device {}", request, device, e);
         }
-        return false;
+        return Status.BAD_REQUEST.getStatusCode();
     }
 
     @Override
     public boolean delete(DeviceId device, String request, InputStream payload, String mediaType) {
-        String type = typeOfMediaType(mediaType);
+        return checkStatusCode(delete(device, request, payload, typeOfMediaType(mediaType)));
+    }
+
+    @Override
+    public int delete(DeviceId device, String request, InputStream payload, MediaType mediaType) {
 
         WebTarget wt = getWebTarget(device, request);
 
-        // FIXME: do we need to delete an entry by enclosing data in DELETE request?
+        // FIXME: do we need to delete an entry by enclosing data in DELETE
+        // request?
         // wouldn't it be nice to use PUT to implement the similar concept?
-        Response response = wt.request(type).delete();
+        Response response = wt.request(mediaType).delete();
 
-        return checkReply(response);
+        return response.getStatus();
     }
 
-    private String typeOfMediaType(String mediaType) {
-        String type;
-        switch (mediaType) {
-            case XML:
-                type = MediaType.APPLICATION_XML;
-                break;
-            case JSON:
-                type = MediaType.APPLICATION_JSON;
-                break;
-            default:
-                throw new IllegalArgumentException("Unsupported media type " + mediaType);
+    private MediaType typeOfMediaType(String type) {
+        switch (type) {
+        case XML:
+            return MediaType.APPLICATION_XML_TYPE;
+        case JSON:
+            return MediaType.APPLICATION_JSON_TYPE;
+        case MediaType.WILDCARD:
+            return MediaType.WILDCARD_TYPE;
+        default:
+            throw new IllegalArgumentException("Unsupported media type " + type);
 
         }
-        return type;
     }
 
     private void authenticate(Client client, String username, String password) {
@@ -279,34 +302,37 @@ public class HttpSBControllerImpl implements HttpSBController {
                                       .build()).build();
     }
 
-    protected String getUrlString(DeviceId device, String request) {
-        if (deviceMap.get(device).url() != null) {
-            return deviceMap.get(device).protocol() + COLON + DOUBLESLASH
-                    + deviceMap.get(device).url() + request;
+    protected String getUrlString(DeviceId deviceId, String request) {
+        RestSBDevice restSBDevice = deviceMap.get(deviceId);
+        if (restSBDevice == null) {
+            log.warn("restSbDevice cannot be NULL!");
+            return "";
+        }
+        if (restSBDevice.url() != null) {
+            return restSBDevice.protocol() + COLON + DOUBLESLASH + restSBDevice.url() + request;
         } else {
-            return deviceMap.get(device).protocol() + COLON +
-                    DOUBLESLASH +
-                    deviceMap.get(device).ip().toString() +
-                    COLON + deviceMap.get(device).port() + request;
+            return restSBDevice.protocol() + COLON + DOUBLESLASH + restSBDevice.ip().toString()
+                    + COLON + restSBDevice.port() + request;
         }
     }
 
     private boolean checkReply(Response response) {
         if (response != null) {
-            return checkStatusCode(response.getStatus());
+            boolean statusCode = checkStatusCode(response.getStatus());
+            if (!statusCode && response.hasEntity()) {
+                log.error("Failed request, HTTP error msg : " + response.readEntity(String.class));
+            }
+            return statusCode;
         }
         log.error("Null reply from device");
         return false;
     }
 
     private boolean checkStatusCode(int statusCode) {
-        if (statusCode == STATUS_OK ||
-                statusCode == STATUS_CREATED ||
-                statusCode == STATUS_ACCEPTED) {
+        if (statusCode == STATUS_OK || statusCode == STATUS_CREATED || statusCode == STATUS_ACCEPTED) {
             return true;
         } else {
-            log.error("Failed request, HTTP error code : "
-                              + statusCode);
+            log.error("Failed request, HTTP error code : " + statusCode);
             return false;
         }
     }
@@ -333,4 +359,5 @@ public class HttpSBControllerImpl implements HttpSBController {
 
         return ClientBuilder.newBuilder().sslContext(sslcontext).hostnameVerifier((s1, s2) -> true).build();
     }
+
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-present Open Networking Laboratory
+ * Copyright 2014-present Open Networking Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -215,6 +215,11 @@ public class CoreEventDispatcher extends DefaultEventSinkRegistry
             add(KILL_PILL);
         }
 
+        void restart() {
+            dispatchFuture.cancel(true);
+            dispatchFuture = executor.submit(this);
+        }
+
         // Monitors event sinks to make sure none take too long to execute.
         private class Watchdog extends TimerTask {
             @Override
@@ -231,9 +236,8 @@ public class CoreEventDispatcher extends DefaultEventSinkRegistry
 
                     // Cancel the old dispatch loop and submit a new one.
 
-                stop();
-                dispatchFuture.cancel(true);
-                dispatchFuture = executor.submit(this);
+                    stop();
+                    restart();
                 }
             }
         }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-present Open Networking Laboratory
+ * Copyright 2015-present Open Networking Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -179,6 +179,17 @@ public final class DefaultForwardingObjective implements ForwardingObjective {
      */
     public static Builder builder() {
         return new Builder();
+    }
+
+    /**
+     * Returns a new builder primed to produce entities
+     * patterned after the supplied forwarding objective.
+     *
+     * @param fwd base fwd
+     * @return forwarding objective builder
+     */
+    public static Builder builder(ForwardingObjective fwd) {
+        return new Builder(fwd);
     }
 
 

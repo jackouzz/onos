@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-present Open Networking Laboratory
+ * Copyright 2016-present Open Networking Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@ import javax.annotation.concurrent.Immutable;
 import org.onosproject.core.ApplicationId;
 import org.onosproject.net.DeviceId;
 import org.onosproject.net.NetworkResource;
+import org.onosproject.net.ResourceGroup;
 import org.onosproject.net.flow.TrafficSelector;
 import org.onosproject.net.flow.TrafficTreatment;
 
@@ -65,9 +66,10 @@ public final class ProtectedTransportIntent extends ConnectivityIntent {
                                      TrafficSelector selector,
                                      TrafficTreatment treatment,
                                      List<Constraint> constraints,
-                                     int priority) {
+                                     int priority,
+                                     ResourceGroup resourceGroup) {
         super(appId, key, resources, selector, treatment, constraints,
-              priority);
+              priority, resourceGroup);
 
         this.one = checkNotNull(one, "one cannot be null");
         this.two = checkNotNull(two, "two cannot be null");
@@ -143,6 +145,11 @@ public final class ProtectedTransportIntent extends ConnectivityIntent {
             return (Builder) super.priority(priority);
         }
 
+        @Override
+        public Builder resourceGroup(ResourceGroup resourceGroup) {
+            return (Builder) super.resourceGroup(resourceGroup);
+        }
+
         /**
          * Sets the transport endpoint device one.
          *
@@ -181,7 +188,8 @@ public final class ProtectedTransportIntent extends ConnectivityIntent {
                                                 selector,
                                                 treatment,
                                                 constraints,
-                                                priority
+                                                priority,
+                                                resourceGroup
             );
         }
 
@@ -199,6 +207,7 @@ public final class ProtectedTransportIntent extends ConnectivityIntent {
                 .add("one", one())
                 .add("two", two())
                 .add("constraints", constraints())
+                .add("resourceGroup", resourceGroup())
                 .toString();
     }
 

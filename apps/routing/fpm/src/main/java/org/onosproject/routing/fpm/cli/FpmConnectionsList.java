@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-present Open Networking Laboratory
+ * Copyright 2017-present Open Networking Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,11 +17,16 @@
 package org.onosproject.routing.fpm.cli;
 
 import org.apache.karaf.shell.commands.Command;
+import org.onlab.packet.IpAddress;
 import org.onlab.util.Tools;
 import org.onosproject.cli.AbstractShellCommand;
+import org.onosproject.cluster.ClusterService;
+import org.onosproject.routing.fpm.FpmPeerInfo;
 import org.onosproject.routing.fpm.FpmInfoService;
+import org.onosproject.routing.fpm.FpmPeer;
 
-import java.net.InetSocketAddress;
+import java.util.Comparator;
+import java.util.Map;
 
 /**
  * Displays the current FPM connections.
@@ -30,20 +35,27 @@ import java.net.InetSocketAddress;
         description = "Displays the current FPM connections")
 public class FpmConnectionsList extends AbstractShellCommand {
 
-    private static final String FORMAT = "%s:%s connected since %s";
+    private static final String FORMAT = "peer %s:%s connected to %s since %s %s (%d routes locally)";
 
     @Override
     protected void execute() {
-        FpmInfoService fpmInfo = AbstractShellCommand.get(FpmInfoService.class);
+        FpmInfoService fpmInfo = get(FpmInfoService.class);
 
-        fpmInfo.peers().forEach((socketAddress, timestamp) -> {
-            if (socketAddress instanceof InetSocketAddress) {
-                InetSocketAddress inet = (InetSocketAddress) socketAddress;
+        fpmInfo.peers().entrySet().stream()
+                .sorted(Comparator.<Map.Entry<FpmPeer, FpmPeerInfo>, IpAddress>comparing(e -> e.getKey().address())
+                        .thenComparing(e -> e.getKey().port()))
+                .map(Map.Entry::getValue)
+                .forEach(this::print);
+    }
 
-                print(FORMAT, inet.getHostString(), inet.getPort(), Tools.timeAgo(timestamp));
-            } else {
-                print("Unknown data format");
-            }
-        });
+    private void print(FpmPeerInfo info) {
+        ClusterService clusterService = get(ClusterService.class);
+
+        info.connections().forEach(cinfo ->
+            print(FORMAT, cinfo.peer().address(), cinfo.peer().port(),
+                    cinfo.connectedTo(), Tools.timeAgo(cinfo.connectTime()),
+                    cinfo.connectedTo().equals(clusterService.getLocalNode().id()) ? "*" : "",
+                    info.routes())
+        );
     }
 }

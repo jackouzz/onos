@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-present Open Networking Laboratory
+ * Copyright 2015-present Open Networking Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -99,6 +99,15 @@ public interface OpenFlowSwitch {
      * @return the switch dpid in long format
      */
     long getId();
+
+    /**
+     * Gets the datapathId of the switch.
+     *
+     * @return the switch dpid
+     */
+    default Dpid getDpid() {
+        return new Dpid(getId());
+    }
 
     /**
      * fetch the manufacturer description.

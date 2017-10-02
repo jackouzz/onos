@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-present Open Networking Laboratory
+ * Copyright 2016-present Open Networking Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -47,6 +47,7 @@ import org.onosproject.net.intent.Intent;
 import org.onosproject.net.intent.IntentCompiler;
 import org.onosproject.net.intent.IntentExtensionService;
 import org.onosproject.net.intent.OpticalOduIntent;
+import org.onosproject.net.intent.PathIntent;
 import org.onosproject.net.optical.OduCltPort;
 import org.onosproject.net.optical.OtuPort;
 import org.onosproject.net.resource.Resource;
@@ -130,7 +131,7 @@ public class OpticalOduIntentCompiler implements IntentCompiler<OpticalOduIntent
         // Release of intent resources here is only a temporary solution for handling the
         // case of recompiling due to intent restoration (when intent state is FAILED).
         // TODO: try to release intent resources in IntentManager.
-        resourceService.release(intent.id());
+        resourceService.release(intent.key());
 
         // Check OduClt ports availability
         Resource srcPortResource = Resources.discrete(src.deviceId(), src.port()).resource();
@@ -175,8 +176,13 @@ public class OpticalOduIntentCompiler implements IntentCompiler<OpticalOduIntent
                 rules.addAll(createRules(intent, intent.getDst(), intent.getSrc(), path, slotsMap, true));
             }
 
-            return Collections.singletonList(new FlowRuleIntent(appId, intent.key(),
-                    rules, ImmutableSet.copyOf(path.links())));
+            return Collections.singletonList(
+                    new FlowRuleIntent(appId,
+                                       intent.key(),
+                                       rules,
+                                       ImmutableSet.copyOf(path.links()),
+                                       PathIntent.ProtectionType.PRIMARY,
+                                       intent.resourceGroup()));
         }
 
         throw new OpticalIntentCompilationException("Unable to find suitable lightpath for intent " + intent);
@@ -204,7 +210,7 @@ public class OpticalOduIntentCompiler implements IntentCompiler<OpticalOduIntent
         Set<Resource> resources = slotsMap.entrySet().stream()
                 .flatMap(x -> x.getValue()
                         .stream()
-                        .flatMap(ts-> Stream.of(
+                        .flatMap(ts -> Stream.of(
                                 Resources.discrete(x.getKey().src().deviceId(), x.getKey().src().port())
                                         .resource().child(ts),
                                 Resources.discrete(x.getKey().dst().deviceId(), x.getKey().dst().port())
@@ -215,7 +221,7 @@ public class OpticalOduIntentCompiler implements IntentCompiler<OpticalOduIntent
 
     private void allocateResources(Intent intent, List<Resource> resources) {
         // reserve all of required resources
-        List<ResourceAllocation> allocations = resourceService.allocate(intent.id(), resources);
+        List<ResourceAllocation> allocations = resourceService.allocate(intent.key(), resources);
         if (allocations.isEmpty()) {
             log.info("Resource allocation for {} failed (resource request: {})", intent, resources);
             throw new OpticalIntentCompilationException("Unable to allocate resources: " + resources);

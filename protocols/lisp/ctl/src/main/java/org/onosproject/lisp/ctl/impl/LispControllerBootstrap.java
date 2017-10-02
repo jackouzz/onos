@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-present Open Networking Laboratory
+ * Copyright 2016-present Open Networking Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -125,7 +125,7 @@ public class LispControllerBootstrap {
         try {
             eventLoopGroup = new EpollEventLoopGroup();
             channelClass = EpollDatagramChannel.class;
-        } catch (RuntimeException e) {
+        } catch (NoClassDefFoundError e) {
             log.debug("Failed to initialize native (epoll) transport. "
                         + "Reason: {}. Proceeding with NIO event group.", e);
         }

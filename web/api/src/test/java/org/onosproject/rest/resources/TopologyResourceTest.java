@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-present Open Networking Laboratory
+ * Copyright 2016-present Open Networking Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -140,12 +140,12 @@ public class TopologyResourceTest extends ResourceTest {
 
         @Override
         public boolean isInfrastructure(Topology topology, ConnectPoint connectPoint) {
-            return connectPoint.elementId().toString().equals("dev2");
+            return "dev2".equals(connectPoint.elementId().toString());
         }
 
         @Override
         public boolean isBroadcastPoint(Topology topology, ConnectPoint connectPoint) {
-            return connectPoint.elementId().toString().equals("dev1");
+            return "dev1".equals(connectPoint.elementId().toString());
         }
 
     }

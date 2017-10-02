@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-present Open Networking Laboratory
+ * Copyright 2015-present Open Networking Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -52,6 +52,7 @@ public abstract class Config<S> {
 
     private static final String TRUE_LITERAL = "true";
     private static final String FALSE_LITERAL = "false";
+    private static final String EMPTY_STRING = "";
 
     protected S subject;
     protected String key;
@@ -437,6 +438,20 @@ public abstract class Config<S> {
             object.set(name, arrayNode);
         }
         return this;
+    }
+
+    /**
+     * Indicates whether the specified field is of a valid length.
+     *
+     * @param field the field to validate
+     * @param maxLength the maximum allowed length of the field
+     * @return true if the field lenth is less than the required length
+     */
+    protected boolean isValidLength(String field, int maxLength) {
+        if (object.path(field).asText(EMPTY_STRING).length() > maxLength) {
+            throw new InvalidFieldException(field, "exceeds maximum length " + maxLength);
+        }
+        return true;
     }
 
     /**
@@ -906,6 +921,11 @@ public abstract class Config<S> {
         if (num.compareTo(max) > 0) {
             fail("Field must be less than " + max);
         }
+    }
+
+    @Override
+    public String toString() {
+        return String.valueOf(node);
     }
 
 }

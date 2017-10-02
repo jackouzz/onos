@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-present Open Networking Laboratory
+ * Copyright 2016-present Open Networking Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -162,6 +162,9 @@ public class NetworkConfigLinksProvider
     protected void deactivate() {
         withdrawIntercepts();
         providerRegistry.unregister(this);
+        deviceService.removeListener(deviceListener);
+        netCfgService.removeListener(cfgListener);
+        packetService.removeProcessor(packetProcessor);
         disable();
         log.info("Deactivated");
     }

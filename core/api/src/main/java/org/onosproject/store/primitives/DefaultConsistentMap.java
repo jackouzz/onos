@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-present Open Networking Laboratory
+ * Copyright 2016-present Open Networking Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -83,6 +83,11 @@ public class DefaultConsistentMap<K, V> extends Synchronous<AsyncConsistentMap<K
     @Override
     public Versioned<V> get(K key) {
         return complete(asyncMap.get(key));
+    }
+
+    @Override
+    public Versioned<V> getOrDefault(K key, V defaultValue) {
+        return complete(asyncMap.getOrDefault(key, defaultValue));
     }
 
     @Override
